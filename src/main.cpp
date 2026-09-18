@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <QApplication>
+#include <QFile>
 #include <QAbstractNativeEventFilter>
 #include <QIcon>
 #include <QJsonArray>
@@ -19,6 +20,7 @@
 #include "core/lua_plugin_loader.hpp"
 #include "core/update_manager.hpp"
 #include "core/notifications.hpp"
+#include "core/workspace_engine.hpp"
 #include "ui/flowdeck_controller.hpp"
 
 namespace {
@@ -115,12 +117,18 @@ int main(int argc, char** argv) {
     tray.show();
     flowdeck::setNotificationTray(&tray);
     if (app.arguments().contains("--smoke-test")) {
+        flowdeck::Workspace geometry;
+        geometry.canvasMode = "16:9";
+        geometry.canvasHeight = 1440;
+        const auto fitted = flowdeck::WorkspaceEngine::fitCanvas(QRect(0,0,3440,1400),geometry);
+        const bool geometryPassed = fitted.width() == 2489 && fitted.height() == 1400 &&
+                                    fitted.x() == 475 && fitted.y() == 0;
         const auto& commands = paletteCore.All();
         const auto has = [&](const std::string& id) {
             return std::any_of(commands.begin(), commands.end(),
                 [&](const flowdeck::Command& c) { return c.id == id; });
         };
-        const bool passed = manager->isVisible() && pythonReady &&
+        const bool passed = geometryPassed && manager->isVisible() && pythonReady &&
                             has("example-hello:hello") && has("example_cpp:hello") &&
                             paletteCore.ExecuteById("example-hello:hello") &&
                             paletteCore.ExecuteById("example_cpp:hello");
@@ -136,6 +144,9 @@ int main(int argc, char** argv) {
         controller.store().beginAutosave();
     QTimer::singleShot(1000, &updater, [&updater, &controller] {
         updater.check(controller.settings().value("channel").toString());
+    });
+    QTimer::singleShot(10000, &app, [] {
+        QFile::remove(qEnvironmentVariable("LOCALAPPDATA") + "/FlowDeck/updates/previous-installer.exe");
     });
     const int result = app.exec();
     hotkeys.unregisterAll();

@@ -19,7 +19,7 @@ QVariantMap rectMap(const QRect& r) {
 QVariantMap zoneMap(const Zone& z) {
     return {{"id", z.id}, {"label", z.label}, {"x", z.bounds.x()},
             {"y", z.bounds.y()}, {"w", z.bounds.width()},
-            {"h", z.bounds.height()}, {"executable", z.executable},
+            {"h", z.bounds.height()}, {"aspectRatio", z.aspectRatio}, {"executable", z.executable},
             {"windowClass", z.windowClass}, {"titlePattern", z.titlePattern}};
 }
 QVariantMap actionMap(const ActionStep& a) {
@@ -182,6 +182,7 @@ void FlowDeckController::editZone(int i, const QString& field, const QVariant& v
     else if (field == "executable") z.executable = value.toString();
     else if (field == "windowClass") z.windowClass = value.toString();
     else if (field == "titlePattern") z.titlePattern = value.toString();
+    else if (field == "aspectRatio") z.aspectRatio = qBound(0.0,value.toDouble(),10.0);
     saveCurrent(w);
 }
 void FlowDeckController::moveZone(int i, double x, double y, double width, double height) {

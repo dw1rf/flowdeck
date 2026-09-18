@@ -12,6 +12,11 @@ ApplicationWindow {
     property int page: 0
     property int zoneIndex: -1
     property bool restoreVisible: flowdeck.restorationSummary() !== "0 matched, 0 missing"
+    function placementTitle(zoneId) {
+        var list = flowdeck.preview.placements
+        for (var i=0;i<list.length;i++) if (list[i].zoneId === zoneId) return list[i].title
+        return flowdeck.text("noWindow")
+    }
     font.family: "Segoe UI"
     font.pixelSize: 14 * (flowdeck.settings.scale || 1)
 
@@ -161,7 +166,7 @@ ApplicationWindow {
                                         width: modelData.w * canvas.width; height: modelData.h * canvas.height
                                         radius: 6; color: ["#365c65","#534a74","#65533d","#3b6250"][index % 4]
                                         border.color: root.zoneIndex === index ? "#ffffff" : "#82a4a9"; border.width: root.zoneIndex === index ? 2 : 1
-                                        Text { anchors.centerIn: parent; width: parent.width - 10; wrapMode: Text.Wrap; horizontalAlignment: Text.AlignHCenter; color: "#f3f8f9"; font.bold: true; text: zone.modelData.label + "\n" + (zone.modelData.executable || flowdeck.text("noWindow")) }
+                                        Text { anchors.centerIn: parent; width: parent.width - 10; wrapMode: Text.Wrap; horizontalAlignment: Text.AlignHCenter; color: "#f3f8f9"; font.bold: true; text: zone.modelData.label + "\n" + root.placementTitle(zone.modelData.id) }
                                         DragHandler {
                                             target: null
                                             onActiveChanged: if (!active) flowdeck.moveZone(zone.index, zone.x/canvas.width, zone.y/canvas.height, zone.width/canvas.width, zone.height/canvas.height)
@@ -235,6 +240,10 @@ ApplicationWindow {
                                 Field { Layout.fillWidth: true; placeholderText: "EXE path / suffix"; text: root.zoneIndex >= 0 ? flowdeck.selectedWorkspace.zones[root.zoneIndex].executable : ""; onEditingFinished: flowdeck.editZone(root.zoneIndex,"executable",text) }
                                 Field { Layout.fillWidth: true; placeholderText: "Window class"; text: root.zoneIndex >= 0 ? flowdeck.selectedWorkspace.zones[root.zoneIndex].windowClass : ""; onEditingFinished: flowdeck.editZone(root.zoneIndex,"windowClass",text) }
                                 Field { Layout.fillWidth: true; placeholderText: "Title pattern (regex)"; text: root.zoneIndex >= 0 ? flowdeck.selectedWorkspace.zones[root.zoneIndex].titlePattern : ""; onEditingFinished: flowdeck.editZone(root.zoneIndex,"titlePattern",text) }
+                                RowLayout {
+                                    LabelText { text: "Aspect ratio" }
+                                    SelectBox { model: ["Free","16:9","21:9"]; currentIndex: root.zoneIndex < 0 ? 0 : Math.abs(flowdeck.selectedWorkspace.zones[root.zoneIndex].aspectRatio-16/9) < .01 ? 1 : Math.abs(flowdeck.selectedWorkspace.zones[root.zoneIndex].aspectRatio-21/9) < .01 ? 2 : 0; onActivated: flowdeck.editZone(root.zoneIndex,"aspectRatio",currentIndex === 1 ? 16/9 : currentIndex === 2 ? 21/9 : 0) }
+                                }
                             }
                         }
                         Repeater {

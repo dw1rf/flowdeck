@@ -10,7 +10,11 @@
 namespace flowdeck {
 
 QString WorkspaceStore::dataDirectory() {
+#ifdef Q_OS_WIN
+    return qEnvironmentVariable("LOCALAPPDATA") + "/FlowDeck";
+#else
     return QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+#endif
 }
 
 QJsonObject WorkspaceStore::read(const QString& file) {

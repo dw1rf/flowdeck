@@ -16,6 +16,7 @@ struct Zone {
     QString executable;
     QString windowClass;
     QString titlePattern;
+    double aspectRatio = 0.0;
 };
 
 struct ActionStep {

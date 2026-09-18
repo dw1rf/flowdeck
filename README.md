@@ -1,42 +1,47 @@
 # FlowDeck
 
-FlowDeck is an early Windows command palette and window tiler written in C++20. It loads native DLL plugins and embedded Python plugins.
+FlowDeck is a Windows workspace manager and command palette. It shows a preview before moving windows, saves the current window session locally, and loads Python, Lua, and native plugins.
 
-## Download and try it
+## Install
 
-Download `FlowDeck-windows-x64.zip` from [Releases](https://github.com/dw1rf/flowdeck/releases). Extract the archive and run `FlowDeck-x64/flowdeck.exe`. The archive includes Python 3.12 and both example plugins; a separate Python installation is not needed.
+Download `FlowDeck-Setup-x64.exe` and its `.sha256` file from [Releases](https://github.com/dw1rf/flowdeck/releases). The installer creates a Start menu shortcut and an uninstaller. The ZIP is available for portable testing. Both packages include Python 3.12, Qt, Lua, and the example plugins; no separate runtime installation is needed.
 
-| Shortcut | Action |
-| --- | --- |
-| Ctrl+Alt+Space | Open or close the command window |
-| Ctrl+Alt+Enter | Apply the selected command while the window is open |
-| Ctrl+Shift+T | Open the coding layout preview |
-| Ctrl+Shift+G | Open the trading layout preview |
+FlowDeck starts with a large manager window. Closing it leaves the app in the system tray. Right-click the tray icon to quit. `Ctrl+Alt+Space` opens the compact command palette. The default Coding and Trading shortcuts open their previews; you can change a workspace shortcut or explicitly enable immediate application in its editor.
 
-The launcher opens when FlowDeck starts. Type to search, use the arrow keys to choose a command, and press Enter or click the action button to run it. Selecting a layout shows the current windows in their proposed positions. No windows move until you apply the layout. Closing the launcher leaves FlowDeck in the system tray; right-click the tray icon to exit.
+## Workspaces
 
-To check the downloaded package without entering the message loop, run `flowdeck.exe --smoke-test` from a terminal. It creates the launcher, loads both plugins, runs their greeting commands, then exits with code 0 on success. This check does not test interactive hotkeys or window placement.
+The **Spaces** view contains Coding, Trading, and Chill templates. Select one to see its zones at the selected monitor's actual available size. The **Editor** lets you drag and resize zones, choose a monitor, a full monitor or virtual 16:9 / 21:9 / custom canvas, gaps, a zone aspect ratio, and matching rules by executable, class, or title pattern. A canvas is fitted inside the monitor work area, so the taskbar is respected. The editor shows the fitted pixel size. On a 3440×1440 display with a 40 px taskbar, a 2560×1440 virtual 16:9 canvas is fitted to 2489×1400 and centered.
 
-Python plugin changes require an application restart. Manifest permissions are parsed but are not enforced.
+Assign a currently open window to each role in the preview. FlowDeck remembers the application and class rule. Other windows are left alone when applying a named workspace. If windows have changed since the preview was calculated, FlowDeck refreshes the preview and asks you to apply again. **Undo** restores the previous positions and minimized/maximized states.
 
-## Build locally
+Before and after actions may launch an EXE, run a PowerShell script, wait for a window, focus or minimize a window, or run a plugin command. They run in sequence and stop on failure. Imported workspaces with actions cannot execute them until you review and trust that workspace. These are trusted local actions, not a sandbox.
 
-Install Visual Studio 2022 with Desktop development with C++, CMake 3.20 or newer, and Python 3.12 with development headers and import library. Then run:
+FlowDeck saves an automatic snapshot of the current user windows in `%LOCALAPPDATA%\FlowDeck\last-session.json`, separately from named workspaces. On startup it offers restoration. Launching applications that are no longer open is an optional checkbox in the restoration dialog. Settings and named spaces are saved in the same local directory, outside the installation folder.
+
+## Plugins
+
+Python plugins have `plugins/<name>/manifest.json` and `main.py`. [The Python example](plugins/example-hello/main.py) shows `COMMANDS`, `run_<id>`, and `flowdeck.notify()`. Command dictionaries may include `title_ru` and `title_en` for localized titles.
+
+Lua 5.5.1 plugins use the same manifest format with `"entry": "main.lua"`. [The Lua example](plugins/example-lua/main.lua) shows the same command and notification API. Lua commands are declared in a global `COMMANDS` table and implemented as `run_<id>()`. Python and Lua plugins run as trusted local code with the user's system permissions; review a plugin before placing it in the plugins folder. Restart FlowDeck after plugin changes.
+
+## Updates
+
+The default Preview channel accepts `build-*` GitHub prereleases. Stable accepts `v*` releases. FlowDeck checks at startup and daily. It downloads the installer and verifies the SHA-256 checksum in the background; installation and restart require confirmation in the UI. The previous downloaded installer is kept in `%LOCALAPPDATA%\FlowDeck\updates` for rollback after later updates.
+
+## Build
+
+Install Visual Studio 2022 with Desktop development with C++, CMake 3.20+, Python 3.12 with development headers, and Qt 6.8.3 MSVC 2022 x64 (Qt Quick, Quick Controls, SVG). CMake downloads and builds Lua 5.5.1 from the official source archive.
 
 ```powershell
-cmake -S . -B build -A x64 -DPython3_ROOT_DIR="C:/Python312"
+cmake -S . -B build -A x64 -DPython3_ROOT_DIR="C:/Python312" -DCMAKE_PREFIX_PATH="C:/Qt/6.8.3/msvc2022_64"
 cmake --build build --config Release
 ./tools/package-windows.ps1
 ```
 
-The packaging script downloads the official Python 3.12.10 embeddable distribution and creates `dist/FlowDeck-windows-x64.zip`. It requires a network connection. If Python is already discoverable by CMake, omit `-DPython3_ROOT_DIR`.
+The package script downloads Python's embeddable distribution and runs `windeployqt`. CI also builds the Inno Setup installer, calculates its SHA-256, installs it in a temporary directory, and runs a packaged smoke test. Pull requests upload artifacts but do not publish releases. Successful pushes to `main` publish Preview releases; `v*` tags publish Stable releases.
 
-## CI and releases
-
-GitHub Actions builds and smoke tests every pull request, push to `main`, and manual run. Each successful `main` push publishes a development prerelease named `build-<run number>` with the tested ZIP. Pushing a `v*` tag publishes a regular release with the same tested ZIP. Failed builds never publish a release. The ZIP is also retained as an Actions artifact.
-
-Python plugins live in `plugins/<name>/` with a `manifest.json` and an entry script. See [the example](plugins/example-hello/main.py) for the current API.
+Run `flowdeck.exe --smoke-test` to check Qt loading, plugin commands, and the 3440×1440 canvas calculation without moving windows. Interactive hotkeys and real window placement still require a desktop test.
 
 ## License
 
-FlowDeck is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE). The packaged CPython runtime retains its own license in `PYTHON-LICENSE.txt`.
+FlowDeck uses the [PolyForm Noncommercial License 1.0.0](LICENSE). It dynamically links Qt under LGPL terms, embeds CPython under the Python Software Foundation License, and includes Lua under the MIT License. Qt DLLs in the package can be replaced with compatible builds; see the upstream license notices accompanying those libraries.

@@ -47,7 +47,9 @@ jobs:
           $testRoot = Join-Path $env:RUNNER_TEMP 'flowdeck-package-test'
           Expand-Archive -LiteralPath dist/FlowDeck-windows-x64.zip -DestinationPath $testRoot -Force
           $exe = Join-Path $testRoot 'FlowDeck-x64/flowdeck.exe'
-          $process = Start-Process -FilePath $exe -ArgumentList '--smoke-test' -PassThru -Wait
+          $process = Start-Process -FilePath $exe -ArgumentList '--smoke-test' -PassThru -Wait -RedirectStandardOutput "$testRoot/stdout.txt" -RedirectStandardError "$testRoot/stderr.txt"
+          Get-Content "$testRoot/stdout.txt" -ErrorAction SilentlyContinue
+          Get-Content "$testRoot/stderr.txt" -ErrorAction SilentlyContinue
           if ($process.ExitCode -ne 0) { throw "Packaged smoke test failed with exit code $($process.ExitCode)" }
 
       - name: Build Windows installer

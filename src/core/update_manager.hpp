@@ -1,6 +1,7 @@
 #pragma once
 #include <QObject>
 #include <QNetworkAccessManager>
+#include <QJsonArray>
 #include <QTimer>
 #include <QUrl>
 
@@ -21,6 +22,7 @@ class UpdateManager : public QObject {
     void changed();
  private:
     void download(const QUrl& url, const QString& filename, bool checksum);
+    void cacheCurrentInstaller(const QJsonArray& releases);
     void setStatus(const QString& value);
     QNetworkAccessManager network_;
     QTimer timer_;
@@ -31,5 +33,6 @@ class UpdateManager : public QObject {
     QUrl setupUrl_;
     QUrl hashUrl_;
     bool ready_ = false;
+    bool rollbackRequired_ = false;
 };
 }

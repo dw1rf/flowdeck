@@ -17,7 +17,11 @@
 namespace flowdeck {
 namespace {
 QString cacheDir() {
+#ifdef Q_OS_WIN
+    return qEnvironmentVariable("LOCALAPPDATA") + "/FlowDeck/updates";
+#else
     return QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) + "/updates";
+#endif
 }
 QString currentTag() {
 #ifdef FLOWDECK_BUILD_TAG
@@ -35,7 +39,7 @@ UpdateManager::UpdateManager(QObject* parent) : QObject(parent) {
 void UpdateManager::setStatus(const QString& value) { status_ = value; emit changed(); }
 void UpdateManager::check(const QString& channel) {
     channel_ = channel == "stable" ? "stable" : "preview";
-    QNetworkRequest request(QUrl("https://api.github.com/repos/dw1rf/flowdeck/releases?per_page=30"));
+    QNetworkRequest request(QUrl("https://api.github.com/repos/dw1rf/flowdeck/releases?per_page=100"));
     request.setRawHeader("Accept", "application/vnd.github+json");
     request.setRawHeader("User-Agent", "FlowDeck-updater");
     auto* reply = network_.get(request);
@@ -69,11 +73,50 @@ void UpdateManager::check(const QString& channel) {
             if (!setup.isValid() || !hash.isValid()) continue;
             version_ = tag; setupUrl_ = setup; hashUrl_ = hash; ready_ = false;
             setStatus("Downloading " + tag);
+            cacheCurrentInstaller(releases);
             download(hashUrl_, "FlowDeck-Setup-x64.exe.sha256", true);
             return;
         }
         setStatus("No update available");
     });
+}
+void UpdateManager::cacheCurrentInstaller(const QJsonArray& releases) {
+    rollbackRequired_ = false;
+    if (currentTag() == "local" || QFile::exists(cacheDir()+"/last-installed-installer.exe")) return;
+    for (const auto& item : releases) {
+        const auto release = item.toObject();
+        if (release.value("tag_name").toString() != currentTag()) continue;
+        QUrl setup, hash;
+        for (const auto& asset : release.value("assets").toArray()) {
+            const auto a = asset.toObject();
+            if (a.value("name") == "FlowDeck-Setup-x64.exe") setup = QUrl(a.value("browser_download_url").toString());
+            if (a.value("name") == "FlowDeck-Setup-x64.exe.sha256") hash = QUrl(a.value("browser_download_url").toString());
+        }
+        if (!setup.isValid() || !hash.isValid() || setup.host() != "github.com" || hash.host() != "github.com") return;
+        rollbackRequired_ = true;
+        QNetworkRequest hashRequest(hash);
+        hashRequest.setAttribute(QNetworkRequest::RedirectPolicyAttribute,QNetworkRequest::NoLessSafeRedirectPolicy);
+        auto* hashReply = network_.get(hashRequest);
+        connect(hashReply,&QNetworkReply::finished,this,[this,hashReply,setup] {
+            const auto expected = hashReply->readAll().left(64).toLower();
+            const auto error = hashReply->error(); hashReply->deleteLater();
+            if (error != QNetworkReply::NoError || expected.size()!=64) return;
+            QNetworkRequest setupRequest(setup);
+            setupRequest.setAttribute(QNetworkRequest::RedirectPolicyAttribute,QNetworkRequest::NoLessSafeRedirectPolicy);
+            auto* setupReply = network_.get(setupRequest);
+            connect(setupReply,&QNetworkReply::finished,this,[this,setupReply,expected] {
+                const auto bytes = setupReply->readAll();
+                const auto error = setupReply->error(); setupReply->deleteLater();
+                if (error != QNetworkReply::NoError ||
+                    QCryptographicHash::hash(bytes,QCryptographicHash::Sha256).toHex()!=expected) return;
+                QDir().mkpath(cacheDir());
+                QSaveFile file(cacheDir()+"/last-installed-installer.exe");
+                if (file.open(QIODevice::WriteOnly) && file.write(bytes)==bytes.size() && file.commit() && ready_)
+                    setStatus("Ready to install " + version_);
+            });
+        });
+        return;
+    }
 }
 void UpdateManager::download(const QUrl& url, const QString& filename, bool checksum) {
     if (url.scheme() != "https" ||
@@ -107,6 +150,9 @@ void UpdateManager::download(const QUrl& url, const QString& filename, bool chec
 }
 void UpdateManager::install() {
     if (!ready_) return;
+    if (rollbackRequired_ && !QFile::exists(cacheDir()+"/last-installed-installer.exe")) {
+        setStatus("Preparing rollback installer; try again shortly"); return;
+    }
     const auto path = cacheDir() + "/FlowDeck-Setup-x64.exe";
     if (!QFile::exists(path)) { setStatus("Installer missing"); return; }
     const auto previous = cacheDir() + "/previous-installer.exe";

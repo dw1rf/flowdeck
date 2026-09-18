@@ -55,6 +55,7 @@ QJsonObject zoneJson(const Zone& zone) {
     return {{"id", zone.id}, {"label", zone.label},
             {"x", zone.bounds.x()}, {"y", zone.bounds.y()},
             {"w", zone.bounds.width()}, {"h", zone.bounds.height()},
+            {"aspectRatio", zone.aspectRatio},
             {"executable", zone.executable}, {"windowClass", zone.windowClass},
             {"titlePattern", zone.titlePattern}};
 }
@@ -67,6 +68,7 @@ Zone zoneFromJson(const QJsonObject& object) {
                          object.value("y").toDouble(),
                          object.value("w").toDouble(),
                          object.value("h").toDouble());
+    zone.aspectRatio = object.value("aspectRatio").toDouble();
     zone.executable = object.value("executable").toString();
     zone.windowClass = object.value("windowClass").toString();
     zone.titlePattern = object.value("titlePattern").toString();
@@ -292,6 +294,12 @@ LayoutPlan WorkspaceEngine::plan(const Workspace& workspace) {
                      result.canvas.y() + qRound(b.y() * result.canvas.height()) + gap,
                      qRound(b.width() * result.canvas.width()) - gap * 2,
                      qRound(b.height() * result.canvas.height()) - gap * 2);
+        if (zone.aspectRatio > 0 && target.isValid()) {
+            const int width = qMin(target.width(), qRound(target.height() * zone.aspectRatio));
+            const int height = qMin(target.height(), qRound(target.width() / zone.aspectRatio));
+            target = QRect(target.x() + (target.width()-width)/2,
+                           target.y() + (target.height()-height)/2, width, height);
+        }
         if (target.width() < 120 || target.height() < 80) continue;
         result.placements.append({*match, zone.id, target});
     }
@@ -496,6 +504,7 @@ QVector<Workspace> defaultWorkspaces() {
     chill.name = "Chill";
     chill.zones = {{"video", "Video 16:9", QRectF(0, 0, .75, 1), {}, {}, {}},
                    {"discord", "Discord", QRectF(.75, 0, .25, 1), {}, {}, {}}};
+    chill.zones[0].aspectRatio = 16.0 / 9.0;
     return {coding, trading, chill};
 }
 
