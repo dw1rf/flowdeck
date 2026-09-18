@@ -37,7 +37,7 @@ QString monitorFor(HWND window) {
     MONITORINFOEXW info{};
     info.cbSize = sizeof(info);
     if (GetMonitorInfoW(MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST),
-                        &info)) return fromWide(info.szDevice);
+                        reinterpret_cast<MONITORINFO*>(&info))) return fromWide(info.szDevice);
     return {};
 }
 
@@ -213,7 +213,7 @@ QVector<QPair<QString, QRect>> WorkspaceEngine::monitors() {
         [](HMONITOR monitor, HDC, LPRECT, LPARAM context) -> BOOL {
             MONITORINFOEXW info{};
             info.cbSize = sizeof(info);
-            if (GetMonitorInfoW(monitor, &info)) {
+            if (GetMonitorInfoW(monitor, reinterpret_cast<MONITORINFO*>(&info))) {
                 auto* output = reinterpret_cast<QVector<QPair<QString, QRect>>*>(context);
                 output->append({fromWide(info.szDevice), fromRect(info.rcWork)});
             }
