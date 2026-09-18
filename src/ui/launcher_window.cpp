@@ -166,6 +166,7 @@ void LauncherWindow::Show() {
         SetWindowTextW(search_, L"");
     }
     ShowWindow(hwnd_, SW_SHOWNORMAL);
+    SetTimer(hwnd_, 1, 1000, nullptr);
     SetForegroundWindow(hwnd_);
     SetFocus(search_);
     InvalidateRect(hwnd_, nullptr, FALSE);
@@ -174,6 +175,7 @@ void LauncherWindow::Show() {
 void LauncherWindow::Hide() {
     if (!visible_) return;
     visible_ = false;
+    KillTimer(hwnd_, 1);
     Palette::Instance().Hide();
     ShowWindow(hwnd_, SW_HIDE);
 }
@@ -401,6 +403,9 @@ LRESULT LauncherWindow::HandleMessage(UINT message, WPARAM wp, LPARAM lp) {
             return reinterpret_cast<LRESULT>(search_brush_);
         case WM_ERASEBKGND:
             return 1;
+        case WM_TIMER:
+            InvalidateRect(hwnd_, nullptr, FALSE);
+            return 0;
         case WM_PAINT: {
             PAINTSTRUCT paint{};
             HDC screen = BeginPaint(hwnd_, &paint);
@@ -436,9 +441,6 @@ LRESULT LauncherWindow::HandleMessage(UINT message, WPARAM wp, LPARAM lp) {
             }
             break;
         }
-        case WM_ACTIVATE:
-            if (LOWORD(wp) == WA_INACTIVE && visible_) Hide();
-            return 0;
         case WM_CLOSE:
             Hide();
             return 0;
