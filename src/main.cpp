@@ -175,8 +175,16 @@ int main(int argc, char** argv) {
         }
         bool navigationPassed = true;
         if (app.arguments().contains("--ui-test")) {
+            const auto findItem = [](auto&& self, QQuickItem* parent, const QString& name) -> QQuickItem* {
+                if (!parent) return nullptr;
+                if (parent->objectName() == name) return parent;
+                for (auto* child : parent->childItems()) {
+                    if (auto* found = self(self, child, name)) return found;
+                }
+                return nullptr;
+            };
             const auto click = [&](int index) {
-                auto* item = manager->findChild<QQuickItem*>("navigation-"+QString::number(index));
+                auto* item = findItem(findItem, manager->contentItem(), "navigation-"+QString::number(index));
                 if (!item) { stage(QString("Navigation %1 not found").arg(index)); return false; }
                 const auto point = item->mapToScene(QPointF(item->width()/2,item->height()/2));
                 QTest::mouseClick(manager,Qt::LeftButton,Qt::NoModifier,point.toPoint());
