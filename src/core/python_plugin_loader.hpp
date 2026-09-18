@@ -8,6 +8,9 @@
 
 namespace flowdeck {
 
+// Must be called before Py_InitializeFromConfig.
+bool RegisterHostModule();
+
 // One Python plugin: a folder with manifest.json + an entry .py module.
 class PythonPlugin {
  public:

@@ -1,5 +1,8 @@
 #pragma once
 
+#include <windows.h>
+
+#include <list>
 #include <string>
 
 #include "core/palette.hpp"
@@ -33,7 +36,7 @@ class PluginManager {
         std::string name;
     };
 
-    std::vector<LoadedPlugin> plugins_;
+    std::list<LoadedPlugin> plugins_;
 };
 
 }  // namespace flowdeck

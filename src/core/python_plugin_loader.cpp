@@ -93,7 +93,9 @@ PyModuleDef kHostModule = {
 
 PyObject* InitHostModule() { return PyModule_Create(&kHostModule); }
 
-bool EnsureHostModuleRegistered() {
+}  // namespace
+
+bool RegisterHostModule() {
     static bool registered = false;
     if (registered) return true;
     if (PyImport_AppendInittab("flowdeck", InitHostModule) != 0) {
@@ -103,8 +105,6 @@ bool EnsureHostModuleRegistered() {
     registered = true;
     return true;
 }
-
-}  // namespace
 
 std::unique_ptr<PythonPlugin> PythonPlugin::Load(const std::wstring& folder) {
     const fs::path dir(folder);
@@ -265,8 +265,6 @@ PythonPluginLoader& PythonPluginLoader::Instance() {
 }
 
 void PythonPluginLoader::LoadAll(const std::wstring& dir) {
-    EnsureHostModuleRegistered();
-
     if (!python::IsReady()) {
         std::cerr << "[python-loader] runtime not ready, skipping\n";
         return;

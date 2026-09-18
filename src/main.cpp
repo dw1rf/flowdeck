@@ -5,6 +5,7 @@
 
 #include <windows.h>
 
+#include <algorithm>
 #include <filesystem>
 #include <iostream>
 
@@ -80,6 +81,12 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int) {
     AttachConsoleIfPossible();
     std::cout << "[FlowDeck] starting\n";
 
+    int argc = 0;
+    LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+    const bool smoke_test = argv && argc == 2 &&
+                            std::wstring(argv[1]) == L"--smoke-test";
+    if (argv) LocalFree(argv);
+
     const std::wstring plugin_dir = ExeDirectory() + L"\\plugins";
 
     HWND hwnd = CreateMessageWindow(inst);
@@ -106,12 +113,34 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int) {
     native.RegisterCommands(palette);
 
     // Python plugins.
-    if (flowdeck::python::Initialise(plugin_dir)) {
+    if (flowdeck::RegisterHostModule() &&
+        flowdeck::python::Initialise(plugin_dir)) {
         auto& py = flowdeck::PythonPluginLoader::Instance();
         py.LoadAll(plugin_dir);
         py.RegisterCommands(palette);
     } else {
         std::cerr << "[FlowDeck] Python unavailable — native plugins only\n";
+    }
+
+    if (smoke_test) {
+        const auto& commands = palette.All();
+        const auto has = [&](const std::string& id) {
+            return std::any_of(commands.begin(), commands.end(),
+                               [&](const flowdeck::Command& command) {
+                                   return command.id == id;
+                               });
+        };
+        const bool loaded = flowdeck::python::IsReady() &&
+                            has("example-hello:hello") &&
+                            has("example_cpp:hello");
+        const bool ran = loaded &&
+                         palette.ExecuteById("example-hello:hello") &&
+                         palette.ExecuteById("example_cpp:hello");
+        std::cout << (ran ? "[smoke] passed\n" : "[smoke] failed\n");
+        flowdeck::PythonPluginLoader::Instance().UnloadAll();
+        flowdeck::python::Shutdown();
+        DestroyWindow(hwnd);
+        return ran ? 0 : 1;
     }
 
     auto& hotkeys = flowdeck::HotkeyManager::Instance();

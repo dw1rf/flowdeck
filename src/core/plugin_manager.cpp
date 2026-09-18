@@ -12,7 +12,7 @@ namespace fs = std::filesystem;
 namespace {
 
 // Bridge: plugin calls ctx.notify -> forwards to console (for now).
-void FLAPI notify_bridge(const char* msg) {
+void notify_bridge(const char* msg) {
     std::cout << "[plugin] " << msg << "\n";
 }
 
@@ -48,14 +48,12 @@ void PluginManager::LoadAll(const std::wstring& dir) {
         }
 
         FlowDeckPluginVTable vt = get_vtable();
-        LoadedPlugin lp{};
+        auto& lp = plugins_.emplace_back();
         lp.module = mod;
         lp.vtable = vt;
         lp.ctx.notify = notify_bridge;
         lp.name = entry.path().stem().string();
-
         if (vt.on_load) vt.on_load(&lp.ctx);
-        plugins_.push_back(std::move(lp));
         std::wcout << L"[plugins] loaded " << entry.path() << L"\n";
     }
 }
@@ -70,7 +68,7 @@ void PluginManager::RegisterCommands(Palette& palette) {
                 /*id=*/std::string(p.name) + ":" + cmds[i].id,
                 /*title=*/std::string(cmds[i].title),
                 /*hint=*/std::string("plugin: ") + p.name,
-                /*run=*/[p, i] {
+                /*run=*/[p, cmds, i] {
                     if (p.vtable.run_command) {
                         p.vtable.run_command(const_cast<FlowDeckCommand*>(&cmds[i]));
                     }

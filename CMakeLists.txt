@@ -27,7 +27,7 @@ find_package(Python3 3.11 REQUIRED COMPONENTS Interpreter Development.Embed)
 
 message(STATUS "FlowDeck: using Python ${Python3_VERSION} at ${Python3_EXECUTABLE}")
 
-add_executable(flowdeck
+add_executable(flowdeck WIN32
     src/main.cpp
     src/core/hotkey_manager.cpp
     src/core/palette.cpp
@@ -42,7 +42,8 @@ target_include_directories(flowdeck PRIVATE src)
 target_link_libraries(flowdeck PRIVATE Python3::Python)
 
 if(WIN32)
-    target_link_libraries(flowdeck PRIVATE user32 shell32)
+    target_link_libraries(flowdeck PRIVATE user32 shell32 dwmapi)
+    add_subdirectory(plugins/example-cpp)
 endif()
 
 install(TARGETS flowdeck RUNTIME DESTINATION bin)
