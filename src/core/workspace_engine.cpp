@@ -231,8 +231,7 @@ QVector<WindowRecord> WorkspaceEngine::windows() {
         RECT bounds = placement.rcNormalPosition;
         if (bounds.right <= bounds.left || bounds.bottom <= bounds.top)
             GetWindowRect(window, &bounds);
-        if (bounds.right - bounds.left < 120 || bounds.bottom - bounds.top < 80)
-            return TRUE;
+        if (bounds.right <= bounds.left || bounds.bottom <= bounds.top) return TRUE;
         output->append({window, fromWide(title), fromWide(executable),
                         fromWide(className), monitorFor(window),
                         fromRect(bounds), static_cast<int>(placement.showCmd)});

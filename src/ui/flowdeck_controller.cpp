@@ -142,7 +142,7 @@ QVariantList FlowDeckController::searchCommands(const QString& query) const {
     const auto all = commands();
     const auto needle = query.trimmed().toCaseFolded();
     if (needle.isEmpty()) return all;
-    const auto score = [&needle](const QString& value) {
+    const auto score = [&needle](const QString& value) -> int {
         const auto haystack = value.toCaseFolded();
         int total = 0, next = 0, run = 0;
         for (const auto character : needle) {
@@ -158,7 +158,7 @@ QVariantList FlowDeckController::searchCommands(const QString& query) const {
             if (!found) return 0;
         }
         if (haystack.startsWith(needle)) total += 8;
-        return qMax(1,total-haystack.size()/16);
+        return qMax(1,total-static_cast<int>(haystack.size()/16));
     };
     QVector<QPair<int,QVariantMap>> ranked;
     for (const auto& value : all) {
