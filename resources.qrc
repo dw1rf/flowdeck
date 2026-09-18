@@ -1,0 +1,5 @@
+<RCC><qresource prefix="/">
+<file>qml/Manager.qml</file>
+<file>qml/Palette.qml</file>
+<file>icons/flowdeck.svg</file>
+</qresource></RCC>

@@ -21,11 +21,18 @@ jobs:
           python-version: '3.12.10'
           architecture: x64
 
+      - name: Install Qt
+        shell: pwsh
+        run: |
+          python -m pip install aqtinstall
+          python -m aqt install-qt windows desktop 6.8.3 win64_msvc2022_64 -O C:/Qt
+
       - name: Configure
         shell: pwsh
         run: |
           $pythonRoot = Split-Path (Get-Command python).Source
-          cmake -S . -B build -A x64 -DPython3_ROOT_DIR="$pythonRoot"
+          $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { "build-$env:GITHUB_RUN_NUMBER" }
+          cmake -S . -B build -A x64 -DPython3_ROOT_DIR="$pythonRoot" -DCMAKE_PREFIX_PATH="C:/Qt/6.8.3/msvc2022_64" -DFLOWDECK_BUILD_TAG="$tag"
 
       - name: Build
         run: cmake --build build --config Release --parallel
@@ -40,14 +47,48 @@ jobs:
           $testRoot = Join-Path $env:RUNNER_TEMP 'flowdeck-package-test'
           Expand-Archive -LiteralPath dist/FlowDeck-windows-x64.zip -DestinationPath $testRoot -Force
           $exe = Join-Path $testRoot 'FlowDeck-x64/flowdeck.exe'
-          $process = Start-Process -FilePath $exe -ArgumentList '--smoke-test' -PassThru -Wait
+          $env:FLOWDECK_SMOKE_LOG = "$testRoot/flowdeck.log"
+          $env:FLOWDECK_SMOKE_SCREENSHOT = "$testRoot/flowdeck-ui.png"
+          $process = Start-Process -FilePath $exe -ArgumentList '--smoke-test --ui-test' -PassThru -Wait -RedirectStandardOutput "$testRoot/stdout.txt" -RedirectStandardError "$testRoot/stderr.txt"
+          Get-Content "$testRoot/flowdeck.log" -ErrorAction SilentlyContinue
+          Get-Content "$testRoot/stdout.txt" -ErrorAction SilentlyContinue
+          Get-Content "$testRoot/stderr.txt" -ErrorAction SilentlyContinue
           if ($process.ExitCode -ne 0) { throw "Packaged smoke test failed with exit code $($process.ExitCode)" }
 
       - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: FlowDeck-UI-preview
+          path: ${{ runner.temp }}/flowdeck-package-test/flowdeck-ui.png
+          if-no-files-found: warn
+
+      - name: Build Windows installer
+        shell: pwsh
+        run: |
+          choco install innosetup --yes --no-progress
+          $env:FLOWDECK_VERSION = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME.TrimStart('v') } else { "0.2.$env:GITHUB_RUN_NUMBER" }
+          & 'C:/Program Files (x86)/Inno Setup 6/ISCC.exe' installer/FlowDeck.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Installer build failed' }
+          (Get-FileHash dist/FlowDeck-Setup-x64.exe -Algorithm SHA256).Hash.ToLower() + '  FlowDeck-Setup-x64.exe' | Set-Content dist/FlowDeck-Setup-x64.exe.sha256
+
+      - name: Test installed application
+        shell: pwsh
+        run: |
+          $target = Join-Path $env:RUNNER_TEMP 'FlowDeckInstalled'
+          $process = Start-Process -FilePath 'dist/FlowDeck-Setup-x64.exe' -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR=`"$target`"" -PassThru -Wait
+          if ($process.ExitCode -ne 0) { throw "Installer failed with code $($process.ExitCode)" }
+          $process = Start-Process -FilePath (Join-Path $target 'flowdeck.exe') -ArgumentList '--smoke-test' -PassThru -Wait
+          if ($process.ExitCode -ne 0) { throw "Installed smoke test failed with code $($process.ExitCode)" }
+
+      - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: FlowDeck-windows-x64
-          path: dist/FlowDeck-windows-x64.zip
-          if-no-files-found: error
+          path: |
+            dist/FlowDeck-windows-x64.zip
+            dist/FlowDeck-Setup-x64.exe
+            dist/FlowDeck-Setup-x64.exe.sha256
+          if-no-files-found: warn
 
       - name: Publish GitHub release
         if: github.event_name != 'pull_request'
@@ -57,8 +98,8 @@ jobs:
         run: |
           if ($env:GITHUB_REF_TYPE -eq 'tag') {
             $tag = $env:GITHUB_REF_NAME
-            gh release create $tag dist/FlowDeck-windows-x64.zip --verify-tag --title $tag --generate-notes
+            gh release create $tag dist/FlowDeck-windows-x64.zip dist/FlowDeck-Setup-x64.exe dist/FlowDeck-Setup-x64.exe.sha256 --verify-tag --title $tag --generate-notes
           } else {
             $tag = "build-$env:GITHUB_RUN_NUMBER"
-            gh release create $tag dist/FlowDeck-windows-x64.zip --target $env:GITHUB_SHA --title "Development build $env:GITHUB_RUN_NUMBER" --prerelease --generate-notes
+            gh release create $tag dist/FlowDeck-windows-x64.zip dist/FlowDeck-Setup-x64.exe dist/FlowDeck-Setup-x64.exe.sha256 --target $env:GITHUB_SHA --title "Development build $env:GITHUB_RUN_NUMBER" --prerelease --generate-notes
           }

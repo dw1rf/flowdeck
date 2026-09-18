@@ -9,13 +9,14 @@
 #include <sstream>
 
 #include "core/python_runtime.hpp"
-#include "core/window_tiler.hpp"
+#include "core/notifications.hpp"
 
 namespace flowdeck {
 
 namespace fs = std::filesystem;
 
 namespace {
+std::function<void(const std::string&)> tileCallback;
 
 // --- tiny JSON readers (flat manifest schema only) ---------------------------
 
@@ -69,13 +70,14 @@ PyObject* Host_notify(PyObject*, PyObject* args) {
     const char* msg = nullptr;
     if (!PyArg_ParseTuple(args, "s", &msg)) return nullptr;
     std::cout << "[plugin] " << msg << "\n";
+    notify(QString::fromUtf8(msg));
     Py_RETURN_NONE;
 }
 
 PyObject* Host_tile(PyObject*, PyObject* args) {
     const char* preset = nullptr;
     if (!PyArg_ParseTuple(args, "s", &preset)) return nullptr;
-    WindowTiler::Instance().ApplyPreset(preset);
+    if (tileCallback) tileCallback(preset);
     Py_RETURN_NONE;
 }
 
@@ -105,6 +107,9 @@ bool RegisterHostModule() {
     registered = true;
     return true;
 }
+void SetHostTileCallback(std::function<void(const std::string&)> callback) {
+    tileCallback = std::move(callback);
+}
 
 std::unique_ptr<PythonPlugin> PythonPlugin::Load(const std::wstring& folder) {
     const fs::path dir(folder);
@@ -120,6 +125,7 @@ std::unique_ptr<PythonPlugin> PythonPlugin::Load(const std::wstring& folder) {
     m.description = JsonString(body, "description");
     const std::string entry = JsonString(body, "entry");
     if (!entry.empty()) m.entry = entry;
+    if (m.entry.size() < 3 || m.entry.substr(m.entry.size() - 3) != ".py") return nullptr;
     m.permissions = JsonStringArray(body, "permissions");
 
     if (m.name.empty()) {
@@ -220,6 +226,10 @@ void PythonPlugin::RegisterCommands(Palette& palette) {
 
         const std::string id = PyUnicode_AsUTF8(py_id);
         const std::string title = PyUnicode_AsUTF8(py_title);
+        const auto translated = [item](const char* key) {
+            PyObject* value = PyDict_GetItemString(item, key);
+            return value && PyUnicode_Check(value) ? std::string(PyUnicode_AsUTF8(value)) : std::string{};
+        };
 
         // Resolve the callable: explicit "run" key, else run_<id>.
         PyObject* callable = PyDict_GetItemString(item, "run");  // borrowed
@@ -253,6 +263,8 @@ void PythonPlugin::RegisterCommands(Palette& palette) {
                 }
                 Py_DECREF(res);
             },
+            translated("title_ru"),
+            translated("title_en"),
         });
     }
 
