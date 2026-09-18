@@ -48,11 +48,19 @@ jobs:
           Expand-Archive -LiteralPath dist/FlowDeck-windows-x64.zip -DestinationPath $testRoot -Force
           $exe = Join-Path $testRoot 'FlowDeck-x64/flowdeck.exe'
           $env:FLOWDECK_SMOKE_LOG = "$testRoot/flowdeck.log"
+          $env:FLOWDECK_SMOKE_SCREENSHOT = "$testRoot/flowdeck-ui.png"
           $process = Start-Process -FilePath $exe -ArgumentList '--smoke-test' -PassThru -Wait -RedirectStandardOutput "$testRoot/stdout.txt" -RedirectStandardError "$testRoot/stderr.txt"
           Get-Content "$testRoot/flowdeck.log" -ErrorAction SilentlyContinue
           Get-Content "$testRoot/stdout.txt" -ErrorAction SilentlyContinue
           Get-Content "$testRoot/stderr.txt" -ErrorAction SilentlyContinue
           if ($process.ExitCode -ne 0) { throw "Packaged smoke test failed with exit code $($process.ExitCode)" }
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: FlowDeck-UI-preview
+          path: ${{ runner.temp }}/flowdeck-package-test/flowdeck-ui.png
+          if-no-files-found: warn
 
       - name: Build Windows installer
         shell: pwsh

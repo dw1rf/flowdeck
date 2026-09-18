@@ -6,8 +6,10 @@
 #include <algorithm>
 
 #include <QCryptographicHash>
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QElapsedTimer>
+#include <QEventLoop>
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -404,6 +406,31 @@ QString WorkspaceEngine::restore(const QJsonObject& saved, bool launchMissing,
     const auto displays = monitors();
     const auto oldDisplays = saved.value("monitors").toArray();
     auto live = windows();
+    if (!previewOnly) undoWindows_ = live;
+    if (launchMissing && !previewOnly) {
+        QSet<QString> missingApps;
+        for (const auto& entry : records) {
+            const auto executable = entry.toObject().value("executable").toString();
+            if (executable.isEmpty()) continue;
+            if (std::none_of(live.begin(),live.end(),[&](const WindowRecord& item) {
+                return item.executable.compare(executable,Qt::CaseInsensitive)==0;
+            })) missingApps.insert(executable);
+        }
+        for (const auto& executable : missingApps) QProcess::startDetached(executable, {});
+        if (!missingApps.isEmpty()) {
+            QElapsedTimer wait; wait.start();
+            while (wait.elapsed() < 10000) {
+                QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+                QThread::msleep(150);
+                live = windows();
+                if (std::all_of(missingApps.begin(),missingApps.end(),[&](const QString& executable) {
+                    return std::any_of(live.begin(),live.end(),[&](const WindowRecord& item) {
+                        return item.executable.compare(executable,Qt::CaseInsensitive)==0;
+                    });
+                })) break;
+            }
+        }
+    }
     QSet<HWND> matched;
     int restored = 0;
     int missing = 0;
@@ -427,19 +454,7 @@ QString WorkspaceEngine::restore(const QJsonObject& saved, bool launchMissing,
         }
         if (found == live.end()) {
             ++missing;
-            if (launchMissing && !previewOnly && !executable.isEmpty()) {
-                QProcess::startDetached(executable, {});
-                QElapsedTimer wait; wait.start();
-                while (wait.elapsed() < 10000) {
-                    QThread::msleep(200);
-                    live = windows();
-                    found = std::find_if(live.begin(),live.end(),[&](const WindowRecord& item) {
-                        return !matched.contains(item.handle) && item.executable.compare(executable,Qt::CaseInsensitive)==0;
-                    });
-                    if (found != live.end()) { --missing; break; }
-                }
-            }
-            if (found == live.end()) continue;
+            continue;
         }
         matched.insert(found->handle);
         if (!previewOnly) {

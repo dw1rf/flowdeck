@@ -4,6 +4,7 @@
 #include <QAbstractNativeEventFilter>
 #include <QIcon>
 #include <QJsonArray>
+#include <QImage>
 #include <QMenu>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
@@ -11,6 +12,7 @@
 #include <QQuickStyle>
 #include <QSystemTrayIcon>
 #include <QTimer>
+#include <QThread>
 #include <algorithm>
 #include <filesystem>
 #include <iostream>
@@ -153,6 +155,14 @@ int main(int argc, char** argv) {
     tray.show();
     flowdeck::setNotificationTray(&tray);
     if (app.arguments().contains("--smoke-test")) {
+        app.processEvents();
+        QThread::msleep(250);
+        app.processEvents();
+        const auto screenshot = qEnvironmentVariable("FLOWDECK_SMOKE_SCREENSHOT");
+        if (!screenshot.isEmpty()) {
+            const bool saved = manager->grabWindow().save(screenshot);
+            stage(QString("UI screenshot saved=%1").arg(saved));
+        }
         flowdeck::Workspace geometry;
         geometry.canvasMode = "16:9";
         geometry.canvasHeight = 1440;
