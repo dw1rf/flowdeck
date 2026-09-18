@@ -330,7 +330,8 @@ bool WorkspaceEngine::apply(const LayoutPlan& layout, const Workspace& workspace
         *error = QStringLiteral("Review and trust imported actions first.");
         return false;
     }
-    undoWindows_ = windows();
+    undoWindows_.clear();
+    for (const auto& placement : layout.placements) undoWindows_.append(placement.window);
     for (const auto& action : workspace.before)
         if (!runStep(action, error)) return false;
     for (const auto& placement : layout.placements) {
@@ -359,10 +360,19 @@ bool WorkspaceEngine::apply(const LayoutPlan& layout, const Workspace& workspace
 
 bool WorkspaceEngine::undo(QString* error) {
     bool success = true;
+    const auto displays = monitors();
     for (const auto& window : undoWindows_) {
         if (!IsWindow(window.handle)) { success = false; continue; }
         ShowWindow(window.handle, SW_RESTORE);
-        const auto& r = window.rect;
+        QRect r = window.rect;
+        const auto found = std::find_if(displays.begin(),displays.end(),[&](const auto& display) {
+            return display.first == window.monitor;
+        });
+        if (found == displays.end() && !displays.isEmpty()) {
+            const auto& area = displays.front().second;
+            r.moveTopLeft(area.topLeft());
+            r.setSize(r.size().boundedTo(area.size()));
+        }
         if (!SetWindowPos(window.handle, nullptr, r.x(), r.y(), r.width(),
                           r.height(), SWP_NOZORDER | SWP_NOACTIVATE)) success = false;
         if (window.showCommand == SW_SHOWMAXIMIZED) ShowWindow(window.handle, SW_MAXIMIZE);

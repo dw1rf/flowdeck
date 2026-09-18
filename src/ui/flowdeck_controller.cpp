@@ -4,11 +4,17 @@
 #include <QCoreApplication>
 #include <QColor>
 #include <QFile>
+#include <QFileInfo>
 #include <QFileDialog>
+#include <QDir>
+#include <QDirIterator>
+#include <QMessageBox>
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QMap>
+#include <QProcess>
 #include <QRegularExpression>
+#include <QSet>
 #include <QStandardPaths>
 #include <QUuid>
 #include <QUrl>
@@ -45,8 +51,11 @@ QVariantMap zoneMap(const Zone& z, const QString& language) {
             {"windowClass", z.windowClass}, {"titlePattern", z.titlePattern}};
 }
 QVariantMap actionMap(const ActionStep& a) {
+    QStringList argumentText;
+    for (const auto& argument : a.arguments)
+        argumentText.append(argument.contains(' ') ? "\"" + argument + "\"" : argument);
     return {{"type", a.type}, {"program", a.program},
-            {"arguments", a.arguments.join(' ')}, {"script", a.script},
+            {"arguments", argumentText.join(' ')}, {"script", a.script},
             {"timeoutMs", a.timeoutMs}};
 }
 }
@@ -128,6 +137,21 @@ QVariantList FlowDeckController::commands() const {
     result.append(QVariantMap{{"id", "core:undo"}, {"title", text("undo")}, {"hint", "FlowDeck"}});
     result.append(QVariantMap{{"id", "core:settings"}, {"title", text("settings")}, {"hint", "FlowDeck"}});
     return result;
+}
+QVariantList FlowDeckController::plugins() const {
+    QVariantList list;
+    QDir root(QCoreApplication::applicationDirPath()+"/plugins");
+    for (const auto& folder : root.entryList(QDir::Dirs|QDir::NoDotAndDotDot)) {
+        QFile manifest(root.filePath(folder+"/manifest.json"));
+        if (!manifest.open(QIODevice::ReadOnly)) continue;
+        const auto data = QJsonDocument::fromJson(manifest.readAll()).object();
+        if (data.isEmpty()) continue;
+        list.append(QVariantMap{{"name",data.value("name").toString(folder)},
+                                {"version",data.value("version").toString()},
+                                {"language",data.value("entry").toString().endsWith(".lua") ? "Lua" : "Python"},
+                                {"description",data.value("description").toString()}});
+    }
+    return list;
 }
 QString FlowDeckController::text(const QString& key) const {
     static const QMap<QString, QPair<QString, QString>> strings = {
@@ -253,7 +277,7 @@ void FlowDeckController::editAction(bool before, int i, const QString& field, co
     auto& a = actions[i];
     if (field == "type") a.type = value.toString();
     else if (field == "program") a.program = value.toString();
-    else if (field == "arguments") a.arguments = value.toString().split(' ', Qt::SkipEmptyParts);
+    else if (field == "arguments") a.arguments = QProcess::splitCommand(value.toString());
     else if (field == "script") a.script = value.toString();
     else if (field == "timeoutMs") a.timeoutMs = qBound(100,value.toInt(),120000);
     saveCurrent(w);
@@ -312,15 +336,21 @@ QString FlowDeckController::restorationSummary() const {
 QVariantList FlowDeckController::restorationDiff() const {
     QVariantList result;
     const auto live = WorkspaceEngine::windows();
+    QSet<HWND> used;
     for (const auto& value : store_.lastSession().value("windows").toArray()) {
         const auto saved = value.toObject();
         const auto exe = saved.value("executable").toString();
         const auto title = saved.value("title").toString();
         const auto klass = saved.value("windowClass").toString();
-        const auto it = std::find_if(live.begin(),live.end(),[&](const WindowRecord& w) {
-            return w.executable.compare(exe,Qt::CaseInsensitive)==0 &&
+        auto it = std::find_if(live.begin(),live.end(),[&](const WindowRecord& w) {
+            return !used.contains(w.handle) && w.executable.compare(exe,Qt::CaseInsensitive)==0 &&
                    w.windowClass.compare(klass,Qt::CaseInsensitive)==0 && w.title==title;
         });
+        if (it == live.end()) it = std::find_if(live.begin(),live.end(),[&](const WindowRecord& w) {
+            return !used.contains(w.handle) && w.executable.compare(exe,Qt::CaseInsensitive)==0 &&
+                   w.windowClass.compare(klass,Qt::CaseInsensitive)==0;
+        });
+        if (it != live.end()) used.insert(it->handle);
         const auto rect = saved.value("rect").toObject();
         result.append(QVariantMap{{"title",title},{"executable",exe},
                                   {"saved",QString("%1,%2  %3×%4").arg(rect.value("x").toInt()).arg(rect.value("y").toInt()).arg(rect.value("w").toInt()).arg(rect.value("h").toInt())},
@@ -341,5 +371,43 @@ void FlowDeckController::runCommand(const QString& id) {
 }
 void FlowDeckController::openPluginsFolder() {
     QDesktopServices::openUrl(QUrl::fromLocalFile(QCoreApplication::applicationDirPath()+"/plugins"));
+}
+void FlowDeckController::installPlugin() {
+    const auto source = QFileDialog::getExistingDirectory(nullptr,
+        language()=="ru" ? "Выберите папку плагина" : "Select plugin folder");
+    if (source.isEmpty()) return;
+    QFile manifest(source+"/manifest.json");
+    if (!manifest.open(QIODevice::ReadOnly)) { setStatus("manifest.json missing"); return; }
+    const auto parsed = QJsonDocument::fromJson(manifest.readAll());
+    if (!parsed.isObject()) { setStatus("Invalid manifest.json"); return; }
+    const auto data = parsed.object();
+    const auto name = data.value("name").toString();
+    const auto entry = data.value("entry").toString();
+    static const QRegularExpression safeName("^[A-Za-z0-9_-]+$");
+    static const QRegularExpression safeEntry("^[A-Za-z0-9_.-]+\\.(py|lua)$");
+    if (!safeName.match(name).hasMatch() ||
+        !safeEntry.match(entry).hasMatch() || !QFileInfo::exists(source+"/"+entry)) {
+        setStatus("Invalid plugin name or entry"); return;
+    }
+    const auto message = language()=="ru" ?
+        QString("Установить %1? Плагин выполняет доверенный локальный код с вашими правами. Проверьте его содержимое.").arg(name) :
+        QString("Install %1? Plugins run trusted local code with your permissions. Review its contents first.").arg(name);
+    if (QMessageBox::warning(nullptr,"FlowDeck",message,QMessageBox::Yes|QMessageBox::No,QMessageBox::No)
+        != QMessageBox::Yes) return;
+    const auto target = QCoreApplication::applicationDirPath()+"/plugins/"+name;
+    if (QDir(target).exists()) { setStatus("Plugin already installed"); return; }
+    if (!QDir().mkpath(target)) { setStatus("Could not create plugin directory"); return; }
+    QDirIterator files(source,QDir::Files,QDirIterator::Subdirectories);
+    while (files.hasNext()) {
+        const auto file = files.next();
+        const auto relative = QDir(source).relativeFilePath(file);
+        const auto destination = QDir(target).filePath(relative);
+        if (!QDir().mkpath(QFileInfo(destination).absolutePath()) || !QFile::copy(file,destination)) {
+            setStatus("Plugin copy failed: "+relative); return;
+        }
+    }
+    setStatus(language()=="ru" ? "Плагин установлен. Перезапустите FlowDeck." :
+                              "Plugin installed. Restart FlowDeck.");
+    emit pluginsChanged();
 }
 } // namespace flowdeck

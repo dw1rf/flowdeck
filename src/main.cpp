@@ -84,6 +84,7 @@ class Hotkeys : public QAbstractNativeEventFilter {
 
 int main(int argc, char** argv) {
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    const HRESULT comResult = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     QApplication app(argc, argv);
     QQuickStyle::setStyle("Basic");
     QFile diagnostic(qEnvironmentVariable("FLOWDECK_SMOKE_LOG"));
@@ -179,6 +180,7 @@ int main(int argc, char** argv) {
         flowdeck::LuaPluginLoader::instance().unloadAll();
         flowdeck::PythonPluginLoader::Instance().UnloadAll();
         flowdeck::python::Shutdown();
+        if (SUCCEEDED(comResult)) CoUninitialize();
         return passed ? 0 : 1;
     }
     if (controller.store().lastSession().value("windows").toArray().isEmpty())
@@ -195,5 +197,6 @@ int main(int argc, char** argv) {
     flowdeck::LuaPluginLoader::instance().unloadAll();
     flowdeck::PythonPluginLoader::Instance().UnloadAll();
     flowdeck::python::Shutdown();
+    if (SUCCEEDED(comResult)) CoUninitialize();
     return result;
 }

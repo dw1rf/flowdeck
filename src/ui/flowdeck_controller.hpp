@@ -17,6 +17,7 @@ class FlowDeckController : public QObject {
     Q_PROPERTY(QVariantMap preview READ preview NOTIFY previewChanged)
     Q_PROPERTY(QVariantMap settings READ settings NOTIFY settingsChanged)
     Q_PROPERTY(QVariantList commands READ commands NOTIFY commandsChanged)
+    Q_PROPERTY(QVariantList plugins READ plugins NOTIFY pluginsChanged)
     Q_PROPERTY(QString status READ status NOTIFY statusChanged)
     Q_PROPERTY(int selectedIndex READ selectedIndex NOTIFY selectedChanged)
     Q_PROPERTY(QString language READ language NOTIFY settingsChanged)
@@ -31,6 +32,7 @@ class FlowDeckController : public QObject {
     QVariantMap preview() const;
     QVariantMap settings() const;
     QVariantList commands() const;
+    QVariantList plugins() const;
     QString status() const { return status_; }
     int selectedIndex() const { return selected_; }
     QString language() const;
@@ -70,6 +72,7 @@ class FlowDeckController : public QObject {
     Q_INVOKABLE QVariantList restorationDiff() const;
     Q_INVOKABLE void runCommand(const QString& id);
     Q_INVOKABLE void openPluginsFolder();
+    Q_INVOKABLE void installPlugin();
 
  signals:
     void workspacesChanged();
@@ -78,6 +81,7 @@ class FlowDeckController : public QObject {
     void previewChanged();
     void settingsChanged();
     void commandsChanged();
+    void pluginsChanged();
     void statusChanged();
     void hotkeysChanged();
     void requestPalette();

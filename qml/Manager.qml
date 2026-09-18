@@ -297,6 +297,7 @@ ApplicationWindow {
                                         Field { Layout.fillWidth: true; text: modelData.program; placeholderText: "EXE / plugin ID"; onEditingFinished: flowdeck.editAction(actionSection.beforeActions,index,"program",text) }
                                         Field { Layout.fillWidth: true; text: modelData.arguments; placeholderText: flowdeck.i18n.arguments; onEditingFinished: flowdeck.editAction(actionSection.beforeActions,index,"arguments",text) }
                                         Field { Layout.fillWidth: true; text: modelData.script; placeholderText: flowdeck.i18n.script; onEditingFinished: flowdeck.editAction(actionSection.beforeActions,index,"script",text) }
+                                        Field { Layout.preferredWidth: 72; text: modelData.timeoutMs; placeholderText: "ms"; onEditingFinished: flowdeck.editAction(actionSection.beforeActions,index,"timeoutMs",Number(text)) }
                                         ActionButton { text: "×"; onClicked: flowdeck.removeAction(actionSection.beforeActions,index) }
                                     }
                                 }
@@ -310,8 +311,20 @@ ApplicationWindow {
             ColumnLayout {
                 visible: root.page === 2; Layout.fillWidth: true; Layout.fillHeight: true; spacing: 16
                 Text { text: flowdeck.i18n.pluginWarning; color: "#edc985"; wrapMode: Text.Wrap; Layout.fillWidth: true }
+                ActionButton { text: flowdeck.language === "ru" ? "Установить папку плагина" : "Install plugin folder"; primary: true; onClicked: flowdeck.installPlugin() }
                 ActionButton { text: flowdeck.i18n.openPlugins; onClicked: flowdeck.openPluginsFolder() }
-                Text { text: "Python  ·  Lua 5.5.1"; color: "#b7c8cb" }
+                Repeater {
+                    model: flowdeck.plugins
+                    delegate: Rectangle {
+                        required property var modelData
+                        Layout.fillWidth: true; implicitHeight: 78; radius: 10; color: "#202e36"
+                        Column {
+                            anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; anchors.leftMargin: 16; spacing: 4
+                            Text { text: modelData.name + "  ·  " + modelData.version + "  ·  " + modelData.language; color: "#f1f7f6"; font.bold: true }
+                            Text { text: modelData.description; color: "#a9b8be" }
+                        }
+                    }
+                }
             }
             ColumnLayout {
                 visible: root.page === 3; Layout.fillWidth: true; Layout.fillHeight: true; spacing: 18

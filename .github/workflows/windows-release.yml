@@ -73,13 +73,14 @@ jobs:
           if ($process.ExitCode -ne 0) { throw "Installed smoke test failed with code $($process.ExitCode)" }
 
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: FlowDeck-windows-x64
           path: |
             dist/FlowDeck-windows-x64.zip
             dist/FlowDeck-Setup-x64.exe
             dist/FlowDeck-Setup-x64.exe.sha256
-          if-no-files-found: error
+          if-no-files-found: warn
 
       - name: Publish GitHub release
         if: github.event_name != 'pull_request'
