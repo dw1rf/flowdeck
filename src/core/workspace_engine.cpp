@@ -8,6 +8,7 @@
 #include <QCryptographicHash>
 #include <QDateTime>
 #include <QElapsedTimer>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QProcess>
@@ -122,7 +123,8 @@ bool runStep(const ActionStep& step, QString* error) {
     }
     if (step.type == "powershell") {
         QProcess process;
-        process.start("powershell.exe", {"-NoProfile", "-File", step.script});
+        const auto mode = QFileInfo::exists(step.script) ? "-File" : "-Command";
+        process.start("powershell.exe", {"-NoProfile", "-NonInteractive", mode, step.script});
         if (process.waitForFinished(step.timeoutMs) &&
             process.exitStatus() == QProcess::NormalExit &&
             process.exitCode() == 0) return true;
@@ -148,8 +150,11 @@ bool runStep(const ActionStep& step, QString* error) {
     if (step.type == "focus" || step.type == "minimize") {
         for (const auto& window : WorkspaceEngine::windows()) {
             if (!window.executable.endsWith(step.program, Qt::CaseInsensitive)) continue;
-            if (step.type == "focus") SetForegroundWindow(window.handle);
-            else ShowWindow(window.handle, SW_MINIMIZE);
+            if (step.type == "focus" && !SetForegroundWindow(window.handle)) {
+                *error = QStringLiteral("Could not focus window: %1").arg(window.title);
+                return false;
+            }
+            if (step.type == "minimize") ShowWindow(window.handle, SW_MINIMIZE);
             return true;
         }
         *error = QStringLiteral("Window not found: %1").arg(step.program);

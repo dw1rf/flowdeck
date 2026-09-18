@@ -24,25 +24,38 @@
 #include "ui/flowdeck_controller.hpp"
 
 namespace {
+QFile* smokeLog = nullptr;
+QtMessageHandler previousMessageHandler = nullptr;
+void logMessage(QtMsgType type, const QMessageLogContext& context, const QString& value) {
+    if (smokeLog) { smokeLog->write(value.toUtf8()+"\n"); smokeLog->flush(); }
+    if (previousMessageHandler) previousMessageHandler(type,context,value);
+}
+void stage(const QString& message) {
+    if (smokeLog) { smokeLog->write(message.toUtf8()+"\n"); smokeLog->flush(); }
+}
 class Hotkeys : public QAbstractNativeEventFilter {
  public:
     Hotkeys(flowdeck::FlowDeckController* controller, QQuickWindow* manager,
             QQuickWindow* palette) : controller_(controller), manager_(manager), palette_(palette) {}
     void registerAll() {
         unregisterAll();
-        if (RegisterHotKey(nullptr, 1, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, VK_SPACE)) ids_.append(1);
-        const auto spaces = controller_->workspaces();
-        for (int i = 0; i < spaces.size(); ++i) {
-            const QString value = spaces[i].toMap().value("hotkey").toString().toUpper();
-            if (value.isEmpty()) continue;
+        const auto registerKey = [this](int id, const QString& value) {
+            const auto hotkey = value.toUpper();
+            if (hotkey.isEmpty()) return;
             UINT mod = MOD_NOREPEAT;
-            if (value.contains("CTRL+")) mod |= MOD_CONTROL;
-            if (value.contains("ALT+")) mod |= MOD_ALT;
-            if (value.contains("SHIFT+")) mod |= MOD_SHIFT;
-            const auto key = value.section('+', -1);
+            if (hotkey.contains("CTRL+")) mod |= MOD_CONTROL;
+            if (hotkey.contains("ALT+")) mod |= MOD_ALT;
+            if (hotkey.contains("SHIFT+")) mod |= MOD_SHIFT;
+            const auto key = hotkey.section('+', -1);
             UINT vk = key == "SPACE" ? VK_SPACE : key == "ENTER" ? VK_RETURN :
                       key.size() == 1 ? static_cast<UINT>(key[0].unicode()) : 0;
-            if (vk && RegisterHotKey(nullptr, 100 + i, mod, vk)) ids_.append(100 + i);
+            if (vk && RegisterHotKey(nullptr, id, mod, vk)) ids_.append(id);
+            else flowdeck::notify("Hotkey unavailable: " + value);
+        };
+        registerKey(1, controller_->settings().value("paletteHotkey","Ctrl+Alt+Space").toString());
+        const auto spaces = controller_->workspaces();
+        for (int i = 0; i < spaces.size(); ++i) {
+            registerKey(100+i, spaces[i].toMap().value("hotkey").toString());
         }
     }
     void unregisterAll() { for (int id : ids_) UnregisterHotKey(nullptr, id); ids_.clear(); }
@@ -70,6 +83,12 @@ class Hotkeys : public QAbstractNativeEventFilter {
 
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
+    QFile diagnostic(qEnvironmentVariable("FLOWDECK_SMOKE_LOG"));
+    if (!diagnostic.fileName().isEmpty() && diagnostic.open(QIODevice::WriteOnly)) {
+        smokeLog = &diagnostic;
+        previousMessageHandler = qInstallMessageHandler(logMessage);
+    }
+    stage("FlowDeck starting");
     app.setOrganizationName("FlowDeck");
     app.setApplicationName("FlowDeck");
     app.setQuitOnLastWindowClosed(false);
@@ -83,17 +102,28 @@ int main(int argc, char** argv) {
         py.LoadAll(pluginDir); py.RegisterCommands(paletteCore); pythonReady = true;
     }
     flowdeck::LuaPluginLoader::instance().loadAll(pluginDir);
+    stage(QString("Plugins: Python=%1 Lua=%2").arg(pythonReady).arg(flowdeck::LuaPluginLoader::instance().count()));
     flowdeck::FlowDeckController controller;
+    flowdeck::SetHostTileCallback([&controller](const std::string& preset) {
+        controller.runCommand("workspace:" + QString::fromStdString(preset));
+    });
     flowdeck::UpdateManager updater;
+    QString updateChannel = controller.settings().value("channel", "preview").toString();
+    QObject::connect(&controller, &flowdeck::FlowDeckController::settingsChanged,
+                     &updater, [&controller, &updater, &updateChannel] {
+        const auto next = controller.settings().value("channel", "preview").toString();
+        if (next != updateChannel) { updateChannel = next; updater.check(next); }
+    });
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty("flowdeck", &controller);
     engine.rootContext()->setContextProperty("updater", &updater);
     engine.load(QUrl(QStringLiteral("qrc:/qml/Manager.qml")));
     engine.load(QUrl(QStringLiteral("qrc:/qml/Palette.qml")));
+    stage(QString("QML roots: %1").arg(engine.rootObjects().size()));
     if (engine.rootObjects().size() != 2) return 1;
     auto* manager = qobject_cast<QQuickWindow*>(engine.rootObjects()[0]);
     auto* palette = qobject_cast<QQuickWindow*>(engine.rootObjects()[1]);
-    if (!manager || !palette) return 1;
+    if (!manager || !palette) { stage("QML root types invalid"); return 1; }
     QObject::connect(&controller, &flowdeck::FlowDeckController::requestManager,
                      manager, [manager] { manager->show(); manager->raise(); manager->requestActivate(); });
     Hotkeys hotkeys(&controller, manager, palette);
@@ -132,6 +162,9 @@ int main(int argc, char** argv) {
                             has("example-hello:hello") && has("example_cpp:hello") &&
                             paletteCore.ExecuteById("example-hello:hello") &&
                             paletteCore.ExecuteById("example_cpp:hello");
+        stage(QString("Smoke geometry=%1 UI=%2 Python=%3 Cpp=%4 Lua=%5")
+              .arg(geometryPassed).arg(manager->isVisible()).arg(pythonReady)
+              .arg(has("example_cpp:hello")).arg(flowdeck::LuaPluginLoader::instance().count()));
         std::cout << (passed ? "[smoke] passed\n" : "[smoke] failed\n");
         hotkeys.unregisterAll();
         flowdeck::setNotificationTray(nullptr);

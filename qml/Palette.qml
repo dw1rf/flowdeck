@@ -22,7 +22,7 @@ ApplicationWindow {
         anchors.fill: parent; anchors.margins: 18; spacing: 12
         TextField {
             id: input; width: parent.width; height: 54
-            placeholderText: flowdeck.text("search")
+            placeholderText: flowdeck.i18n.search
             font.pixelSize: 20; color: "#f1f7f6"
             background: Rectangle { color: "#25343d"; radius: 10; border.color: "#47665f" }
             onTextChanged: root.search()

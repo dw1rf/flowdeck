@@ -5,9 +5,11 @@
 #include <QFile>
 #include <QFileDialog>
 #include <QJsonDocument>
+#include <QJsonArray>
 #include <QStandardPaths>
 #include <QUuid>
 #include <QUrl>
+#include <algorithm>
 
 #include "core/palette.hpp"
 
@@ -80,6 +82,18 @@ QVariantMap FlowDeckController::preview() const {
 }
 QVariantMap FlowDeckController::settings() const { return store_.settings().toVariantMap(); }
 QString FlowDeckController::language() const { return store_.settings().value("language").toString("ru"); }
+QVariantMap FlowDeckController::i18n() const {
+    QVariantMap result;
+    for (const auto& key : {"spaces","editor","plugins","settings","workspace","preview","apply","undo",
+                            "new","duplicate","delete","zones","addZone","assign","monitor","canvas","actual",
+                            "gap","hotkey","directApply","actionsBefore","actionsAfter","language","accent",
+                            "contrast","scale","density","channel","restore","restoreHint","launchMissing",
+                            "trust","pluginWarning","search","noWindow","import","export","checkUpdates",
+                            "installUpdate","openPlugins","aspectRatio","free","auto","unassigned","arguments",
+                            "script","exe","windowClass","titlePattern"})
+        result.insert(QString::fromLatin1(key), text(QString::fromLatin1(key)));
+    return result;
+}
 QVariantList FlowDeckController::commands() const {
     QVariantList result;
     for (const auto& w : store_.workspaces())
@@ -121,6 +135,18 @@ QString FlowDeckController::text(const QString& key) const {
                             "Python and Lua plugins run trusted local code with system access."}},
         {"search", {"Поиск команд и пространств", "Search commands and spaces"}},
         {"noWindow", {"Окно не назначено", "No window assigned"}},
+        {"import", {"Импорт", "Import"}}, {"export", {"Экспорт", "Export"}},
+        {"checkUpdates", {"Проверить обновления", "Check updates"}},
+        {"installUpdate", {"Установить обновление", "Install update"}},
+        {"openPlugins", {"Открыть папку плагинов", "Open plugins folder"}},
+        {"aspectRatio", {"Соотношение сторон", "Aspect ratio"}},
+        {"free", {"Свободно", "Free"}}, {"auto", {"Авто", "Auto"}},
+        {"unassigned", {"без назначений", "unassigned"}},
+        {"arguments", {"Аргументы", "Arguments"}},
+        {"script", {"Скрипт / заголовок", "Script / title"}},
+        {"exe", {"Путь EXE / окончание", "EXE path / suffix"}},
+        {"windowClass", {"Класс окна", "Window class"}},
+        {"titlePattern", {"Шаблон заголовка (regex)", "Title pattern (regex)"}},
     };
     const auto it = strings.find(key);
     return it == strings.end() ? key : (language() == "en" ? it.value().second : it.value().first);
@@ -240,6 +266,7 @@ void FlowDeckController::refresh() {
 }
 void FlowDeckController::setSetting(const QString& key, const QVariant& value) {
     store_.setSetting(key, QJsonValue::fromVariant(value)); emit settingsChanged(); emit commandsChanged();
+    if (key == "paletteHotkey") emit hotkeysChanged();
 }
 void FlowDeckController::restoreSession(bool launchMissing) {
     setStatus(WorkspaceEngine::restore(store_.lastSession(), launchMissing, false)); refresh();
@@ -248,6 +275,26 @@ void FlowDeckController::restoreSession(bool launchMissing) {
 void FlowDeckController::dismissRestoration() { store_.beginAutosave(); }
 QString FlowDeckController::restorationSummary() const {
     return WorkspaceEngine::restore(store_.lastSession(), false, true);
+}
+QVariantList FlowDeckController::restorationDiff() const {
+    QVariantList result;
+    const auto live = WorkspaceEngine::windows();
+    for (const auto& value : store_.lastSession().value("windows").toArray()) {
+        const auto saved = value.toObject();
+        const auto exe = saved.value("executable").toString();
+        const auto title = saved.value("title").toString();
+        const auto klass = saved.value("windowClass").toString();
+        const auto it = std::find_if(live.begin(),live.end(),[&](const WindowRecord& w) {
+            return w.executable.compare(exe,Qt::CaseInsensitive)==0 &&
+                   w.windowClass.compare(klass,Qt::CaseInsensitive)==0 && w.title==title;
+        });
+        const auto rect = saved.value("rect").toObject();
+        result.append(QVariantMap{{"title",title},{"executable",exe},
+                                  {"saved",QString("%1,%2  %3×%4").arg(rect.value("x").toInt()).arg(rect.value("y").toInt()).arg(rect.value("w").toInt()).arg(rect.value("h").toInt())},
+                                  {"current",it==live.end() ? QString() : QString("%1,%2  %3×%4").arg(it->rect.x()).arg(it->rect.y()).arg(it->rect.width()).arg(it->rect.height())},
+                                  {"missing",it==live.end()}});
+    }
+    return result;
 }
 void FlowDeckController::runCommand(const QString& id) {
     if (id.startsWith("workspace:")) {

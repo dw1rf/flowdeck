@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -10,6 +11,7 @@ namespace flowdeck {
 
 // Must be called before Py_InitializeFromConfig.
 bool RegisterHostModule();
+void SetHostTileCallback(std::function<void(const std::string&)> callback);
 
 // One Python plugin: a folder with manifest.json + an entry .py module.
 class PythonPlugin {

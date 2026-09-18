@@ -48,7 +48,8 @@ WorkspaceStore::WorkspaceStore(QObject* parent) : QObject(parent) {
     if (settings_.isEmpty()) {
         settings_ = {{"language", "ru"}, {"accent", "#63d8c7"},
                      {"contrast", "normal"}, {"scale", 1.0},
-                     {"density", "comfortable"}, {"channel", "preview"}};
+                     {"density", "comfortable"}, {"channel", "preview"},
+                     {"paletteHotkey", "Ctrl+Alt+Space"}};
     }
     lastSession_ = read("last-session.json");
     lastFingerprint_ = WorkspaceEngine::fingerprint(WorkspaceEngine::windows());

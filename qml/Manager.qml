@@ -15,7 +15,7 @@ ApplicationWindow {
     function placementTitle(zoneId) {
         var list = flowdeck.preview.placements
         for (var i=0;i<list.length;i++) if (list[i].zoneId === zoneId) return list[i].title
-        return flowdeck.text("noWindow")
+        return flowdeck.i18n.noWindow
     }
     font.family: "Segoe UI"
     font.pixelSize: 14 * (flowdeck.settings.scale || 1)
@@ -56,7 +56,7 @@ ApplicationWindow {
                 anchors.fill: parent; anchors.margins: 20; spacing: 8
                 Text { text: "◧  FlowDeck"; color: root.accent; font.pixelSize: 22; font.bold: true; Layout.bottomMargin: 20 }
                 Repeater {
-                    model: [flowdeck.text("spaces"), flowdeck.text("editor"), flowdeck.text("plugins"), flowdeck.text("settings")]
+                    model: [flowdeck.i18n.spaces, flowdeck.i18n.editor, flowdeck.i18n.plugins, flowdeck.i18n.settings]
                     delegate: Rectangle {
                         required property int index
                         required property string modelData
@@ -74,9 +74,9 @@ ApplicationWindow {
             Layout.fillWidth: true; Layout.fillHeight: true; Layout.margins: 24; spacing: 18
             RowLayout {
                 Layout.fillWidth: true
-                Text { text: [flowdeck.text("spaces"),flowdeck.text("editor"),flowdeck.text("plugins"),flowdeck.text("settings")][root.page]; color: "#f1f7f6"; font.pixelSize: 26; font.bold: true }
+                Text { text: [flowdeck.i18n.spaces,flowdeck.i18n.editor,flowdeck.i18n.plugins,flowdeck.i18n.settings][root.page]; color: "#f1f7f6"; font.pixelSize: 26; font.bold: true }
                 Item { Layout.fillWidth: true }
-                ActionButton { text: flowdeck.text("undo"); onClicked: flowdeck.undo() }
+                ActionButton { text: flowdeck.i18n.undo; onClicked: flowdeck.undo() }
                 ActionButton { text: "⟳"; onClicked: flowdeck.refresh() }
             }
             Rectangle {
@@ -86,7 +86,7 @@ ApplicationWindow {
                     anchors.fill: parent; anchors.margins: 9
                     Text { text: updater.status; color: "#e6f5f1" }
                     Item { Layout.fillWidth: true }
-                    ActionButton { text: "Install update"; primary: true; onClicked: updateDialog.open() }
+                    ActionButton { text: flowdeck.i18n.installUpdate; primary: true; onClicked: updateDialog.open() }
                 }
             }
             Rectangle {
@@ -95,11 +95,11 @@ ApplicationWindow {
                 RowLayout {
                     anchors.fill: parent; anchors.margins: 12
                     ColumnLayout {
-                        Text { text: flowdeck.text("restoreHint"); color: "#eaf1dc" }
+                        Text { text: flowdeck.i18n.restoreHint; color: "#eaf1dc" }
                         LabelText { text: flowdeck.restorationSummary() }
                     }
                     Item { Layout.fillWidth: true }
-                    ActionButton { text: flowdeck.text("restore"); onClicked: restoreDialog.open() }
+                    ActionButton { text: flowdeck.i18n.restore; onClicked: restoreDialog.open() }
                     ActionButton { text: "×"; onClicked: { root.restoreVisible = false; flowdeck.dismissRestoration() } }
                 }
             }
@@ -111,7 +111,7 @@ ApplicationWindow {
                     ColumnLayout {
                         anchors.fill: parent; anchors.margins: 12; spacing: 10
                         RowLayout {
-                            LabelText { text: flowdeck.text("spaces") }
+                            LabelText { text: flowdeck.i18n.spaces }
                             Item { Layout.fillWidth: true }
                             ActionButton { text: "+"; onClicked: flowdeck.createWorkspace() }
                         }
@@ -132,8 +132,8 @@ ApplicationWindow {
                             }
                         }
                         RowLayout {
-                            ActionButton { text: flowdeck.text("duplicate"); onClicked: flowdeck.duplicateWorkspace() }
-                            ActionButton { text: flowdeck.text("delete"); onClicked: flowdeck.deleteWorkspace() }
+                            ActionButton { text: flowdeck.i18n.duplicate; onClicked: flowdeck.duplicateWorkspace() }
+                            ActionButton { text: flowdeck.i18n.delete; onClicked: flowdeck.deleteWorkspace() }
                         }
                     }
                 }
@@ -144,8 +144,8 @@ ApplicationWindow {
                         RowLayout {
                             Layout.fillWidth: true
                             Field { Layout.fillWidth: true; text: flowdeck.selectedWorkspace.name || ""; onEditingFinished: flowdeck.changeWorkspace("name", text) }
-                            ActionButton { text: flowdeck.text("preview"); onClicked: flowdeck.refresh() }
-                            ActionButton { text: flowdeck.text("apply"); primary: true; enabled: flowdeck.preview.placements.length > 0; onClicked: flowdeck.applySelected() }
+                            ActionButton { text: flowdeck.i18n.preview; onClicked: flowdeck.refresh() }
+                            ActionButton { text: flowdeck.i18n.apply; primary: true; enabled: flowdeck.preview.placements.length > 0; onClicked: flowdeck.applySelected() }
                         }
                         Rectangle {
                             Layout.fillWidth: true; implicitHeight: 300; radius: 14
@@ -186,25 +186,25 @@ ApplicationWindow {
                                 }
                             }
                         }
-                        LabelText { text: flowdeck.text("actual") + ": " + flowdeck.preview.canvas.width + " × " + flowdeck.preview.canvas.height + " px  ·  " + flowdeck.preview.unassigned.length + " unassigned" }
+                        LabelText { text: flowdeck.i18n.actual + ": " + flowdeck.preview.canvas.width + " × " + flowdeck.preview.canvas.height + " px  ·  " + flowdeck.preview.unassigned.length + " " + flowdeck.i18n.unassigned }
                         RowLayout {
                             Layout.fillWidth: true
-                            ActionButton { text: flowdeck.text("addZone"); onClicked: flowdeck.addZone() }
-                            ActionButton { text: flowdeck.text("delete"); enabled: root.zoneIndex >= 0; onClicked: { flowdeck.removeZone(root.zoneIndex); root.zoneIndex = -1 } }
+                            ActionButton { text: flowdeck.i18n.addZone; onClicked: flowdeck.addZone() }
+                            ActionButton { text: flowdeck.i18n.delete; enabled: root.zoneIndex >= 0; onClicked: { flowdeck.removeZone(root.zoneIndex); root.zoneIndex = -1 } }
                             Item { Layout.fillWidth: true }
-                            ActionButton { text: "Import"; onClicked: flowdeck.importWorkspace() }
-                            ActionButton { text: "Export"; onClicked: flowdeck.exportWorkspace() }
+                            ActionButton { text: flowdeck.i18n.import; onClicked: flowdeck.importWorkspace() }
+                            ActionButton { text: flowdeck.i18n.export; onClicked: flowdeck.exportWorkspace() }
                         }
                         RowLayout {
                             Layout.fillWidth: true
-                            LabelText { text: flowdeck.text("monitor") }
+                            LabelText { text: flowdeck.i18n.monitor }
                             SelectBox {
                                 id: monitorBox; Layout.preferredWidth: 190
-                                model: ["Auto"].concat(flowdeck.monitors.map(function(m) { return m.name }))
+                                model: [flowdeck.i18n.auto].concat(flowdeck.monitors.map(function(m) { return m.name }))
                                 currentIndex: Math.max(0,model.indexOf(flowdeck.selectedWorkspace.monitor))
                                 onActivated: flowdeck.changeWorkspace("monitor", currentIndex === 0 ? "" : currentText)
                             }
-                            LabelText { text: flowdeck.text("canvas") }
+                            LabelText { text: flowdeck.i18n.canvas }
                             SelectBox {
                                 model: ["native","16:9","21:9","custom"]
                                 currentIndex: Math.max(0,model.indexOf(flowdeck.selectedWorkspace.canvasMode))
@@ -217,32 +217,32 @@ ApplicationWindow {
                             Field { Layout.preferredWidth: 80; text: flowdeck.selectedWorkspace.canvasWidth; validator: IntValidator { bottom: 1; top: 16000 }; onEditingFinished: flowdeck.changeWorkspace("canvasWidth", Number(text)) }
                             LabelText { text: "H" }
                             Field { Layout.preferredWidth: 80; text: flowdeck.selectedWorkspace.canvasHeight; validator: IntValidator { bottom: 1; top: 16000 }; onEditingFinished: flowdeck.changeWorkspace("canvasHeight", Number(text)) }
-                            LabelText { text: flowdeck.text("gap") }
+                            LabelText { text: flowdeck.i18n.gap }
                             Field { Layout.preferredWidth: 60; text: flowdeck.selectedWorkspace.gap; validator: IntValidator { bottom: 0; top: 100 }; onEditingFinished: flowdeck.changeWorkspace("gap", Number(text)) }
                         }
                         RowLayout {
-                            LabelText { text: flowdeck.text("hotkey") }
+                            LabelText { text: flowdeck.i18n.hotkey }
                             Field { Layout.preferredWidth: 160; text: flowdeck.selectedWorkspace.hotkey || ""; placeholderText: "Ctrl+Shift+T"; onEditingFinished: flowdeck.changeWorkspace("hotkey", text) }
-                            CheckBox { text: flowdeck.text("directApply"); checked: flowdeck.selectedWorkspace.directApply || false; onToggled: flowdeck.changeWorkspace("directApply", checked) }
+                            CheckBox { text: flowdeck.i18n.directApply; checked: flowdeck.selectedWorkspace.directApply || false; onToggled: flowdeck.changeWorkspace("directApply", checked) }
                         }
                         Rectangle {
                             visible: root.zoneIndex >= 0 && root.zoneIndex < (flowdeck.selectedWorkspace.zones || []).length
                             Layout.fillWidth: true; implicitHeight: zoneDetails.implicitHeight + 28; radius: 10; color: "#202d35"
                             ColumnLayout {
                                 id: zoneDetails; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 14
-                                LabelText { text: flowdeck.text("zones") + " · " + (root.zoneIndex+1) }
+                                LabelText { text: flowdeck.i18n.zones + " · " + (root.zoneIndex+1) }
                                 Field { Layout.fillWidth: true; text: root.zoneIndex >= 0 ? flowdeck.selectedWorkspace.zones[root.zoneIndex].label : ""; onEditingFinished: flowdeck.editZone(root.zoneIndex,"label",text) }
                                 SelectBox {
                                     Layout.fillWidth: true
-                                    model: [flowdeck.text("assign")].concat(flowdeck.windows.map(function(w) { return w.title + "  ·  " + w.executable.split(/[\\/]/).pop() }))
+                                    model: [flowdeck.i18n.assign].concat(flowdeck.windows.map(function(w) { return w.title + "  ·  " + w.executable.split(/[\\/]/).pop() }))
                                     onActivated: if (currentIndex > 0) { var w = flowdeck.windows[currentIndex-1]; flowdeck.assignZone(root.zoneIndex,w.executable,w.windowClass,"") }
                                 }
-                                Field { Layout.fillWidth: true; placeholderText: "EXE path / suffix"; text: root.zoneIndex >= 0 ? flowdeck.selectedWorkspace.zones[root.zoneIndex].executable : ""; onEditingFinished: flowdeck.editZone(root.zoneIndex,"executable",text) }
-                                Field { Layout.fillWidth: true; placeholderText: "Window class"; text: root.zoneIndex >= 0 ? flowdeck.selectedWorkspace.zones[root.zoneIndex].windowClass : ""; onEditingFinished: flowdeck.editZone(root.zoneIndex,"windowClass",text) }
-                                Field { Layout.fillWidth: true; placeholderText: "Title pattern (regex)"; text: root.zoneIndex >= 0 ? flowdeck.selectedWorkspace.zones[root.zoneIndex].titlePattern : ""; onEditingFinished: flowdeck.editZone(root.zoneIndex,"titlePattern",text) }
+                                Field { Layout.fillWidth: true; placeholderText: flowdeck.i18n.exe; text: root.zoneIndex >= 0 ? flowdeck.selectedWorkspace.zones[root.zoneIndex].executable : ""; onEditingFinished: flowdeck.editZone(root.zoneIndex,"executable",text) }
+                                Field { Layout.fillWidth: true; placeholderText: flowdeck.i18n.windowClass; text: root.zoneIndex >= 0 ? flowdeck.selectedWorkspace.zones[root.zoneIndex].windowClass : ""; onEditingFinished: flowdeck.editZone(root.zoneIndex,"windowClass",text) }
+                                Field { Layout.fillWidth: true; placeholderText: flowdeck.i18n.titlePattern; text: root.zoneIndex >= 0 ? flowdeck.selectedWorkspace.zones[root.zoneIndex].titlePattern : ""; onEditingFinished: flowdeck.editZone(root.zoneIndex,"titlePattern",text) }
                                 RowLayout {
-                                    LabelText { text: "Aspect ratio" }
-                                    SelectBox { model: ["Free","16:9","21:9"]; currentIndex: root.zoneIndex < 0 ? 0 : Math.abs(flowdeck.selectedWorkspace.zones[root.zoneIndex].aspectRatio-16/9) < .01 ? 1 : Math.abs(flowdeck.selectedWorkspace.zones[root.zoneIndex].aspectRatio-21/9) < .01 ? 2 : 0; onActivated: flowdeck.editZone(root.zoneIndex,"aspectRatio",currentIndex === 1 ? 16/9 : currentIndex === 2 ? 21/9 : 0) }
+                                    LabelText { text: flowdeck.i18n.aspectRatio }
+                                    SelectBox { model: [flowdeck.i18n.free,"16:9","21:9"]; currentIndex: root.zoneIndex < 0 ? 0 : Math.abs(flowdeck.selectedWorkspace.zones[root.zoneIndex].aspectRatio-16/9) < .01 ? 1 : Math.abs(flowdeck.selectedWorkspace.zones[root.zoneIndex].aspectRatio-21/9) < .01 ? 2 : 0; onActivated: flowdeck.editZone(root.zoneIndex,"aspectRatio",currentIndex === 1 ? 16/9 : currentIndex === 2 ? 21/9 : 0) }
                                 }
                             }
                         }
@@ -253,7 +253,7 @@ ApplicationWindow {
                                 required property var modelData
                                 property bool beforeActions: modelData
                                 Layout.fillWidth: true
-                                LabelText { text: modelData ? flowdeck.text("actionsBefore") : flowdeck.text("actionsAfter") }
+                                LabelText { text: modelData ? flowdeck.i18n.actionsBefore : flowdeck.i18n.actionsAfter }
                                 Repeater {
                                     model: modelData ? flowdeck.selectedWorkspace.before : flowdeck.selectedWorkspace.after
                                     delegate: RowLayout {
@@ -262,39 +262,41 @@ ApplicationWindow {
                                         Layout.fillWidth: true
                                         SelectBox { model: ["launch","powershell","wait","focus","minimize","plugin"]; currentIndex: Math.max(0,model.indexOf(modelData.type)); onActivated: flowdeck.editAction(actionSection.beforeActions,index,"type",currentText) }
                                         Field { Layout.fillWidth: true; text: modelData.program; placeholderText: "EXE / plugin ID"; onEditingFinished: flowdeck.editAction(actionSection.beforeActions,index,"program",text) }
-                                        Field { Layout.fillWidth: true; text: modelData.arguments; placeholderText: "Arguments"; onEditingFinished: flowdeck.editAction(actionSection.beforeActions,index,"arguments",text) }
-                                        Field { Layout.fillWidth: true; text: modelData.script; placeholderText: "Script / title"; onEditingFinished: flowdeck.editAction(actionSection.beforeActions,index,"script",text) }
+                                        Field { Layout.fillWidth: true; text: modelData.arguments; placeholderText: flowdeck.i18n.arguments; onEditingFinished: flowdeck.editAction(actionSection.beforeActions,index,"arguments",text) }
+                                        Field { Layout.fillWidth: true; text: modelData.script; placeholderText: flowdeck.i18n.script; onEditingFinished: flowdeck.editAction(actionSection.beforeActions,index,"script",text) }
                                         ActionButton { text: "×"; onClicked: flowdeck.removeAction(actionSection.beforeActions,index) }
                                     }
                                 }
                                 ActionButton { text: "+"; onClicked: flowdeck.addAction(modelData) }
                             }
                         }
-                        ActionButton { visible: !flowdeck.selectedWorkspace.trusted; text: flowdeck.text("trust"); onClicked: flowdeck.trustWorkspace() }
+                        ActionButton { visible: !flowdeck.selectedWorkspace.trusted; text: flowdeck.i18n.trust; onClicked: flowdeck.trustWorkspace() }
                     }
                 }
             }
             ColumnLayout {
                 visible: root.page === 2; Layout.fillWidth: true; Layout.fillHeight: true; spacing: 16
-                Text { text: flowdeck.text("pluginWarning"); color: "#edc985"; wrapMode: Text.Wrap; Layout.fillWidth: true }
-                ActionButton { text: "Open plugins folder"; onClicked: flowdeck.openPluginsFolder() }
+                Text { text: flowdeck.i18n.pluginWarning; color: "#edc985"; wrapMode: Text.Wrap; Layout.fillWidth: true }
+                ActionButton { text: flowdeck.i18n.openPlugins; onClicked: flowdeck.openPluginsFolder() }
                 Text { text: "Python  ·  Lua 5.5.1"; color: "#b7c8cb" }
             }
             ColumnLayout {
                 visible: root.page === 3; Layout.fillWidth: true; Layout.fillHeight: true; spacing: 18
-                LabelText { text: flowdeck.text("language") }
+                LabelText { text: flowdeck.i18n.language }
                 SelectBox { model: ["🇷🇺 Русский", "🇬🇧 English"]; currentIndex: flowdeck.language === "en" ? 1 : 0; onActivated: flowdeck.setSetting("language", currentIndex === 1 ? "en" : "ru") }
-                LabelText { text: flowdeck.text("accent") }
+                LabelText { text: flowdeck.i18n.hotkey + " · Palette" }
+                Field { text: flowdeck.settings.paletteHotkey || "Ctrl+Alt+Space"; onEditingFinished: flowdeck.setSetting("paletteHotkey",text) }
+                LabelText { text: flowdeck.i18n.accent }
                 Field { text: flowdeck.settings.accent; onEditingFinished: flowdeck.setSetting("accent", text) }
-                LabelText { text: flowdeck.text("contrast") }
+                LabelText { text: flowdeck.i18n.contrast }
                 SelectBox { model: ["normal","high"]; currentIndex: model.indexOf(flowdeck.settings.contrast); onActivated: flowdeck.setSetting("contrast", currentText) }
-                LabelText { text: flowdeck.text("scale") }
+                LabelText { text: flowdeck.i18n.scale }
                 Slider { from: .8; to: 1.5; stepSize: .05; value: flowdeck.settings.scale || 1; onMoved: flowdeck.setSetting("scale", value) }
-                LabelText { text: flowdeck.text("density") }
+                LabelText { text: flowdeck.i18n.density }
                 SelectBox { model: ["comfortable","compact"]; currentIndex: model.indexOf(flowdeck.settings.density); onActivated: flowdeck.setSetting("density", currentText) }
-                LabelText { text: flowdeck.text("channel") }
+                LabelText { text: flowdeck.i18n.channel }
                 SelectBox { model: ["preview","stable"]; currentIndex: model.indexOf(flowdeck.settings.channel); onActivated: flowdeck.setSetting("channel", currentText) }
-                ActionButton { text: "Check updates"; onClicked: updater.check(flowdeck.settings.channel) }
+                ActionButton { text: flowdeck.i18n.checkUpdates; onClicked: updater.check(flowdeck.settings.channel) }
                 LabelText { text: updater.status }
                 Item { Layout.fillHeight: true }
             }
@@ -302,11 +304,21 @@ ApplicationWindow {
         }
     }
     Dialog {
-        id: restoreDialog; title: flowdeck.text("restore"); modal: true; anchors.centerIn: parent
+        id: restoreDialog; title: flowdeck.i18n.restore; modal: true; anchors.centerIn: parent
         standardButtons: Dialog.Ok | Dialog.Cancel
-        contentItem: Column { spacing: 12
+        contentItem: Column { width: 520; spacing: 12
             Text { text: flowdeck.restorationSummary(); color: "#e5eeee" }
-            CheckBox { id: launchMissingCheck; text: flowdeck.text("launchMissing"); checked: false }
+            ListView {
+                width: parent.width; height: Math.min(280,contentHeight); clip: true
+                model: flowdeck.restorationDiff()
+                delegate: Column {
+                    required property var modelData
+                    width: ListView.view.width; spacing: 2
+                    Text { text: modelData.title; color: "#e5eeee"; elide: Text.ElideRight; width: parent.width }
+                    Text { text: modelData.missing ? "Closed  →  " + modelData.saved : modelData.current + "  →  " + modelData.saved; color: modelData.missing ? "#e3ad72" : "#91c5b8"; font.pixelSize: 11 }
+                }
+            }
+            CheckBox { id: launchMissingCheck; text: flowdeck.i18n.launchMissing; checked: false }
         }
         onAccepted: { flowdeck.restoreSession(launchMissingCheck.checked); root.restoreVisible = false }
         onRejected: { flowdeck.dismissRestoration(); root.restoreVisible = false }

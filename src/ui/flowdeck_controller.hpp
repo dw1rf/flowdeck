@@ -20,6 +20,7 @@ class FlowDeckController : public QObject {
     Q_PROPERTY(QString status READ status NOTIFY statusChanged)
     Q_PROPERTY(int selectedIndex READ selectedIndex NOTIFY selectedChanged)
     Q_PROPERTY(QString language READ language NOTIFY settingsChanged)
+    Q_PROPERTY(QVariantMap i18n READ i18n NOTIFY settingsChanged)
 
  public:
     explicit FlowDeckController(QObject* parent = nullptr);
@@ -33,6 +34,7 @@ class FlowDeckController : public QObject {
     QString status() const { return status_; }
     int selectedIndex() const { return selected_; }
     QString language() const;
+    QVariantMap i18n() const;
     WorkspaceStore& store() { return store_; }
     const WorkspaceStore& store() const { return store_; }
 
@@ -65,6 +67,7 @@ class FlowDeckController : public QObject {
     Q_INVOKABLE void restoreSession(bool launchMissing);
     Q_INVOKABLE void dismissRestoration();
     Q_INVOKABLE QString restorationSummary() const;
+    Q_INVOKABLE QVariantList restorationDiff() const;
     Q_INVOKABLE void runCommand(const QString& id);
     Q_INVOKABLE void openPluginsFolder();
 

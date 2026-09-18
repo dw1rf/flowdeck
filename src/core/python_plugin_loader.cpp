@@ -9,7 +9,6 @@
 #include <sstream>
 
 #include "core/python_runtime.hpp"
-#include "core/window_tiler.hpp"
 #include "core/notifications.hpp"
 
 namespace flowdeck {
@@ -17,6 +16,7 @@ namespace flowdeck {
 namespace fs = std::filesystem;
 
 namespace {
+std::function<void(const std::string&)> tileCallback;
 
 // --- tiny JSON readers (flat manifest schema only) ---------------------------
 
@@ -77,7 +77,7 @@ PyObject* Host_notify(PyObject*, PyObject* args) {
 PyObject* Host_tile(PyObject*, PyObject* args) {
     const char* preset = nullptr;
     if (!PyArg_ParseTuple(args, "s", &preset)) return nullptr;
-    WindowTiler::Instance().ApplyPreset(preset);
+    if (tileCallback) tileCallback(preset);
     Py_RETURN_NONE;
 }
 
@@ -106,6 +106,9 @@ bool RegisterHostModule() {
     }
     registered = true;
     return true;
+}
+void SetHostTileCallback(std::function<void(const std::string&)> callback) {
+    tileCallback = std::move(callback);
 }
 
 std::unique_ptr<PythonPlugin> PythonPlugin::Load(const std::wstring& folder) {
