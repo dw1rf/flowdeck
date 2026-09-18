@@ -13,7 +13,8 @@ class UpdateManager : public QObject {
     Q_PROPERTY(bool ready READ ready NOTIFY changed)
  public:
     explicit UpdateManager(QObject* parent = nullptr);
-    QString status() const { return status_; }
+    QString status() const;
+    void setLanguage(const QString& language) { language_ = language; emit changed(); }
     QString availableVersion() const { return version_; }
     bool ready() const { return ready_; }
     Q_INVOKABLE void check(const QString& channel);
@@ -28,6 +29,7 @@ class UpdateManager : public QObject {
     QTimer timer_;
     QString channel_ = "preview";
     QString status_;
+    QString language_ = "ru";
     QString version_;
     QByteArray expectedHash_;
     QUrl setupUrl_;

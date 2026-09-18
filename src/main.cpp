@@ -8,6 +8,7 @@
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQuickWindow>
+#include <QQuickStyle>
 #include <QSystemTrayIcon>
 #include <QTimer>
 #include <algorithm>
@@ -82,7 +83,9 @@ class Hotkeys : public QAbstractNativeEventFilter {
 }
 
 int main(int argc, char** argv) {
+    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     QApplication app(argc, argv);
+    QQuickStyle::setStyle("Basic");
     QFile diagnostic(qEnvironmentVariable("FLOWDECK_SMOKE_LOG"));
     if (!diagnostic.fileName().isEmpty() && diagnostic.open(QIODevice::WriteOnly)) {
         smokeLog = &diagnostic;
@@ -108,9 +111,11 @@ int main(int argc, char** argv) {
         controller.runCommand("workspace:" + QString::fromStdString(preset));
     });
     flowdeck::UpdateManager updater;
+    updater.setLanguage(controller.language());
     QString updateChannel = controller.settings().value("channel", "preview").toString();
     QObject::connect(&controller, &flowdeck::FlowDeckController::settingsChanged,
                      &updater, [&controller, &updater, &updateChannel] {
+        updater.setLanguage(controller.language());
         const auto next = controller.settings().value("channel", "preview").toString();
         if (next != updateChannel) { updateChannel = next; updater.check(next); }
     });
@@ -152,7 +157,10 @@ int main(int argc, char** argv) {
         geometry.canvasHeight = 1440;
         const auto fitted = flowdeck::WorkspaceEngine::fitCanvas(QRect(0,0,3440,1400),geometry);
         const bool geometryPassed = fitted.width() == 2489 && fitted.height() == 1400 &&
-                                    fitted.x() == 475 && fitted.y() == 0;
+                                    fitted.x() == 475 && fitted.y() == 0 &&
+                                    flowdeck::WorkspaceEngine::fitCanvas(QRect(-1920,-100,1920,1040),geometry)
+                                        .intersected(QRect(-1920,-100,1920,1040)) ==
+                                    flowdeck::WorkspaceEngine::fitCanvas(QRect(-1920,-100,1920,1040),geometry);
         const auto& commands = paletteCore.All();
         const auto has = [&](const std::string& id) {
             return std::any_of(commands.begin(), commands.end(),

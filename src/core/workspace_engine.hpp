@@ -62,6 +62,7 @@ struct Placement {
 struct LayoutPlan {
     QRect monitorArea;
     QRect canvas;
+    bool monitorMissing = false;
     QVector<Placement> placements;
     QStringList unassignedZones;
     QString fingerprint;

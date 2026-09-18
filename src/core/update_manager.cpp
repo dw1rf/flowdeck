@@ -7,6 +7,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QMap>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QProcess>
@@ -35,6 +36,24 @@ UpdateManager::UpdateManager(QObject* parent) : QObject(parent) {
     timer_.setInterval(24 * 60 * 60 * 1000);
     connect(&timer_, &QTimer::timeout, this, [this] { check(channel_); });
     timer_.start();
+}
+QString UpdateManager::status() const {
+    if (language_ != "ru") return status_;
+    if (status_.startsWith("Downloading ")) return "Загрузка " + status_.mid(12);
+    if (status_.startsWith("Ready to install ")) return "Готово к установке " + status_.mid(17);
+    static const QMap<QString,QString> translated = {
+        {"Update check failed","Не удалось проверить обновления"},
+        {"Up to date","Обновлений нет"}, {"No update available","Обновлений нет"},
+        {"Untrusted update URL","Недоверенный адрес обновления"},
+        {"Update download failed","Не удалось загрузить обновление"},
+        {"Invalid checksum file","Некорректный файл SHA-256"},
+        {"Update checksum mismatch","SHA-256 обновления не совпадает"},
+        {"Could not save update","Не удалось сохранить обновление"},
+        {"Installer missing","Установщик не найден"},
+        {"Installer could not start","Не удалось запустить установщик"},
+        {"Preparing rollback installer; try again shortly","Подготовка установщика для отката — попробуйте чуть позже"},
+    };
+    return translated.value(status_,status_);
 }
 void UpdateManager::setStatus(const QString& value) { status_ = value; emit changed(); }
 void UpdateManager::check(const QString& channel) {

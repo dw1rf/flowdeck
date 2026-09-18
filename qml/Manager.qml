@@ -7,8 +7,10 @@ ApplicationWindow {
     width: 1250; height: 820; minimumWidth: 950; minimumHeight: 660
     visible: true
     title: "FlowDeck"
-    color: "#10151a"
+    color: flowdeck.settings.contrast === "high" ? "#060a0d" : "#10151a"
     property color accent: flowdeck.settings.accent || "#63d8c7"
+    property bool highContrast: flowdeck.settings.contrast === "high"
+    property bool compact: flowdeck.settings.density === "compact"
     property int page: 0
     property int zoneIndex: -1
     property bool restoreVisible: flowdeck.restorationSummary() !== "0 matched, 0 missing"
@@ -23,11 +25,11 @@ ApplicationWindow {
     component ActionButton: Button {
         id: button
         property bool primary: false
-        implicitHeight: 36
+        implicitHeight: root.compact ? 31 : 36
         background: Rectangle {
             radius: 9
-            color: button.primary ? root.accent : (button.hovered ? "#303b44" : "#263039")
-            border.color: button.primary ? root.accent : "#40505b"
+            color: button.primary ? root.accent : (button.hovered ? "#303b44" : root.highContrast ? "#111b20" : "#263039")
+            border.color: button.primary ? root.accent : root.highContrast ? "#e7f5f2" : "#40505b"
         }
         contentItem: Text {
             text: button.text; color: button.primary ? "#10201f" : "#e6eef0"
@@ -36,22 +38,22 @@ ApplicationWindow {
     }
     component Field: TextField {
         color: "#e7eff0"; selectionColor: root.accent; selectedTextColor: "#10151a"
-        background: Rectangle { radius: 7; color: "#202a32"; border.color: parent.activeFocus ? root.accent : "#3a4a55" }
-        implicitHeight: 36
+        background: Rectangle { radius: 7; color: root.highContrast ? "#0c151a" : "#202a32"; border.color: parent.activeFocus ? root.accent : root.highContrast ? "#e7f5f2" : "#3a4a55" }
+        implicitHeight: root.compact ? 31 : 36
     }
     component LabelText: Text { color: "#a9b8be"; font.pixelSize: 12 * (flowdeck.settings.scale || 1) }
     component SelectBox: ComboBox {
         id: box
-        implicitHeight: 36
+        implicitHeight: root.compact ? 31 : 36
         contentItem: Text { text: box.displayText; color: "#e7eff0"; verticalAlignment: Text.AlignVCenter; leftPadding: 10 }
-        background: Rectangle { radius: 7; color: "#202a32"; border.color: "#3a4a55" }
+        background: Rectangle { radius: 7; color: root.highContrast ? "#0c151a" : "#202a32"; border.color: root.highContrast ? "#e7f5f2" : "#3a4a55" }
         delegate: ItemDelegate { width: box.width; text: modelData; highlighted: box.highlightedIndex === index }
     }
 
     RowLayout {
         anchors.fill: parent; spacing: 0
         Rectangle {
-            Layout.preferredWidth: 220; Layout.fillHeight: true; color: "#151d23"
+            Layout.preferredWidth: 220; Layout.fillHeight: true; color: root.highContrast ? "#0a1013" : "#151d23"
             ColumnLayout {
                 anchors.fill: parent; anchors.margins: 20; spacing: 8
                 Text { text: "◧  FlowDeck"; color: root.accent; font.pixelSize: 22; font.bold: true; Layout.bottomMargin: 20 }
@@ -60,7 +62,7 @@ ApplicationWindow {
                     delegate: Rectangle {
                         required property int index
                         required property string modelData
-                        Layout.fillWidth: true; height: 44; radius: 9
+                        Layout.fillWidth: true; height: root.compact ? 36 : 44; radius: 9
                         color: root.page === index ? "#29433f" : "transparent"
                         Text { anchors.centerIn: parent; text: modelData; color: root.page === index ? root.accent : "#b1c0c6"; font.pixelSize: 15 }
                         TapHandler { onTapped: root.page = index }
@@ -71,7 +73,7 @@ ApplicationWindow {
             }
         }
         ColumnLayout {
-            Layout.fillWidth: true; Layout.fillHeight: true; Layout.margins: 24; spacing: 18
+            Layout.fillWidth: true; Layout.fillHeight: true; Layout.margins: root.compact ? 16 : 24; spacing: root.compact ? 10 : 18
             RowLayout {
                 Layout.fillWidth: true
                 Text { text: [flowdeck.i18n.spaces,flowdeck.i18n.editor,flowdeck.i18n.plugins,flowdeck.i18n.settings][root.page]; color: "#f1f7f6"; font.pixelSize: 26; font.bold: true }
@@ -105,9 +107,9 @@ ApplicationWindow {
             }
             RowLayout {
                 visible: root.page < 2
-                Layout.fillWidth: true; Layout.fillHeight: true; spacing: 18
+                Layout.fillWidth: true; Layout.fillHeight: true; spacing: root.compact ? 10 : 18
                 Rectangle {
-                    Layout.preferredWidth: 228; Layout.fillHeight: true; radius: 12; color: "#1a242b"
+                    Layout.preferredWidth: 228; Layout.fillHeight: true; radius: 12; color: root.highContrast ? "#0c161a" : "#1a242b"
                     ColumnLayout {
                         anchors.fill: parent; anchors.margins: 12; spacing: 10
                         RowLayout {
@@ -164,9 +166,9 @@ ApplicationWindow {
                                         required property var modelData
                                         x: modelData.x * canvas.width; y: modelData.y * canvas.height
                                         width: modelData.w * canvas.width; height: modelData.h * canvas.height
-                                        radius: 6; color: ["#365c65","#534a74","#65533d","#3b6250"][index % 4]
+                                        radius: 6; color: root.page === 0 ? "#263841" : ["#365c65","#534a74","#65533d","#3b6250"][index % 4]
                                         border.color: root.zoneIndex === index ? "#ffffff" : "#82a4a9"; border.width: root.zoneIndex === index ? 2 : 1
-                                        Text { anchors.centerIn: parent; width: parent.width - 10; wrapMode: Text.Wrap; horizontalAlignment: Text.AlignHCenter; color: "#f3f8f9"; font.bold: true; text: zone.modelData.label + "\n" + root.placementTitle(zone.modelData.id) }
+                                        Text { anchors.centerIn: parent; width: parent.width - 10; wrapMode: Text.Wrap; horizontalAlignment: Text.AlignHCenter; color: "#f3f8f9"; font.bold: true; text: root.page === 0 ? zone.modelData.label : zone.modelData.label + "\n" + root.placementTitle(zone.modelData.id) }
                                         DragHandler {
                                             target: null
                                             onActiveChanged: if (!active) flowdeck.moveZone(zone.index, zone.x/canvas.width, zone.y/canvas.height, zone.width/canvas.width, zone.height/canvas.height)
@@ -174,6 +176,7 @@ ApplicationWindow {
                                         }
                                         TapHandler { onTapped: root.zoneIndex = zone.index }
                                         Rectangle {
+                                            visible: root.page === 1
                                             width: 12; height: 12; radius: 3; color: root.accent
                                             anchors.right: parent.right; anchors.bottom: parent.bottom
                                             DragHandler {
@@ -184,9 +187,24 @@ ApplicationWindow {
                                         }
                                     }
                                 }
+                                Repeater {
+                                    model: root.page === 0 ? flowdeck.preview.placements : []
+                                    delegate: Rectangle {
+                                        required property int index
+                                        required property var modelData
+                                        x: (modelData.target.x - flowdeck.preview.canvas.x) / Math.max(1,flowdeck.preview.canvas.width) * canvas.width
+                                        y: (modelData.target.y - flowdeck.preview.canvas.y) / Math.max(1,flowdeck.preview.canvas.height) * canvas.height
+                                        width: modelData.target.width / Math.max(1,flowdeck.preview.canvas.width) * canvas.width
+                                        height: modelData.target.height / Math.max(1,flowdeck.preview.canvas.height) * canvas.height
+                                        radius: 6; color: ["#3c6b74","#695d8c","#816a4e","#48775d"][index % 4]
+                                        border.color: "#c9e1df"; border.width: 1
+                                        Text { anchors.centerIn: parent; width: parent.width-10; text: modelData.title; wrapMode: Text.Wrap; horizontalAlignment: Text.AlignHCenter; color: "#ffffff"; font.bold: true }
+                                    }
+                                }
                             }
                         }
                         LabelText { text: flowdeck.i18n.actual + ": " + flowdeck.preview.canvas.width + " × " + flowdeck.preview.canvas.height + " px  ·  " + flowdeck.preview.unassigned.length + " " + flowdeck.i18n.unassigned }
+                        LabelText { visible: flowdeck.preview.monitorMissing; text: flowdeck.language === "ru" ? "Выбранный монитор не найден — предпросмотр на основном" : "Selected monitor is missing — preview uses the first display"; color: "#edb77f" }
                         RowLayout {
                             Layout.fillWidth: true
                             ActionButton { text: flowdeck.i18n.addZone; onClicked: flowdeck.addZone() }
@@ -214,11 +232,26 @@ ApplicationWindow {
                         RowLayout {
                             Layout.fillWidth: true
                             LabelText { text: "W" }
-                            Field { Layout.preferredWidth: 80; text: flowdeck.selectedWorkspace.canvasWidth; validator: IntValidator { bottom: 1; top: 16000 }; onEditingFinished: flowdeck.changeWorkspace("canvasWidth", Number(text)) }
+                            Field {
+                                Layout.preferredWidth: 80
+                                text: flowdeck.selectedWorkspace.canvasWidth
+                                validator: IntValidator { bottom: 1; top: 16000 }
+                                onEditingFinished: flowdeck.changeWorkspace("canvasWidth", Number(text))
+                            }
                             LabelText { text: "H" }
-                            Field { Layout.preferredWidth: 80; text: flowdeck.selectedWorkspace.canvasHeight; validator: IntValidator { bottom: 1; top: 16000 }; onEditingFinished: flowdeck.changeWorkspace("canvasHeight", Number(text)) }
+                            Field {
+                                Layout.preferredWidth: 80
+                                text: flowdeck.selectedWorkspace.canvasHeight
+                                validator: IntValidator { bottom: 1; top: 16000 }
+                                onEditingFinished: flowdeck.changeWorkspace("canvasHeight", Number(text))
+                            }
                             LabelText { text: flowdeck.i18n.gap }
-                            Field { Layout.preferredWidth: 60; text: flowdeck.selectedWorkspace.gap; validator: IntValidator { bottom: 0; top: 100 }; onEditingFinished: flowdeck.changeWorkspace("gap", Number(text)) }
+                            Field {
+                                Layout.preferredWidth: 60
+                                text: flowdeck.selectedWorkspace.gap
+                                validator: IntValidator { bottom: 0; top: 100 }
+                                onEditingFinished: flowdeck.changeWorkspace("gap", Number(text))
+                            }
                         }
                         RowLayout {
                             LabelText { text: flowdeck.i18n.hotkey }
@@ -235,7 +268,7 @@ ApplicationWindow {
                                 SelectBox {
                                     Layout.fillWidth: true
                                     model: [flowdeck.i18n.assign].concat(flowdeck.windows.map(function(w) { return w.title + "  ·  " + w.executable.split(/[\\/]/).pop() }))
-                                    onActivated: if (currentIndex > 0) { var w = flowdeck.windows[currentIndex-1]; flowdeck.assignZone(root.zoneIndex,w.executable,w.windowClass,"") }
+                                    onActivated: if (currentIndex > 0) { var w = flowdeck.windows[currentIndex-1]; flowdeck.assignZone(root.zoneIndex,w.executable,w.windowClass,w.title) }
                                 }
                                 Field { Layout.fillWidth: true; placeholderText: flowdeck.i18n.exe; text: root.zoneIndex >= 0 ? flowdeck.selectedWorkspace.zones[root.zoneIndex].executable : ""; onEditingFinished: flowdeck.editZone(root.zoneIndex,"executable",text) }
                                 Field { Layout.fillWidth: true; placeholderText: flowdeck.i18n.windowClass; text: root.zoneIndex >= 0 ? flowdeck.selectedWorkspace.zones[root.zoneIndex].windowClass : ""; onEditingFinished: flowdeck.editZone(root.zoneIndex,"windowClass",text) }

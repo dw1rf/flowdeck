@@ -2,10 +2,13 @@
 
 #include <QDesktopServices>
 #include <QCoreApplication>
+#include <QColor>
 #include <QFile>
 #include <QFileDialog>
 #include <QJsonDocument>
 #include <QJsonArray>
+#include <QMap>
+#include <QRegularExpression>
 #include <QStandardPaths>
 #include <QUuid>
 #include <QUrl>
@@ -15,11 +18,28 @@
 
 namespace flowdeck {
 namespace {
+QString displayName(const Workspace& w, const QString& language) {
+    if (language != "ru") return w.name;
+    if (w.id == "coding" && w.name == "Coding") return "Кодинг";
+    if (w.id == "trading" && w.name == "Trading") return "Трейдинг";
+    if (w.id == "chill" && w.name == "Chill") return "Чилл";
+    if (w.id == "grid" && w.name == "Grid") return "Сетка";
+    return w.name;
+}
 QVariantMap rectMap(const QRect& r) {
     return {{"x", r.x()}, {"y", r.y()}, {"width", r.width()}, {"height", r.height()}};
 }
-QVariantMap zoneMap(const Zone& z) {
-    return {{"id", z.id}, {"label", z.label}, {"x", z.bounds.x()},
+QVariantMap zoneMap(const Zone& z, const QString& language) {
+    QString label = z.label;
+    if (language == "ru") {
+        static const QMap<QString,QString> names = {{"Browser","Браузер"},{"Chart 1","График 1"},
+            {"Chart 2","График 2"},{"Chart 3","График 3"},{"Terminal","Терминал"},
+            {"Video 16:9","Видео 16:9"},{"Top left","Слева сверху"},
+            {"Top right","Справа сверху"},{"Bottom left","Слева снизу"},
+            {"Bottom right","Справа снизу"}};
+        label = names.value(label,label);
+    }
+    return {{"id", z.id}, {"label", label}, {"x", z.bounds.x()},
             {"y", z.bounds.y()}, {"w", z.bounds.width()},
             {"h", z.bounds.height()}, {"aspectRatio", z.aspectRatio}, {"executable", z.executable},
             {"windowClass", z.windowClass}, {"titlePattern", z.titlePattern}};
@@ -38,7 +58,7 @@ FlowDeckController::FlowDeckController(QObject* parent) : QObject(parent) {
 QVariantList FlowDeckController::workspaces() const {
     QVariantList result;
     for (const auto& w : store_.workspaces())
-        result.append(QVariantMap{{"id", w.id}, {"name", w.name}, {"hotkey", w.hotkey},
+        result.append(QVariantMap{{"id", w.id}, {"name", displayName(w,language())}, {"hotkey", w.hotkey},
                                   {"directApply", w.directApply}});
     return result;
 }
@@ -60,10 +80,10 @@ QVariantMap FlowDeckController::selectedWorkspace() const {
     if (selected_ < 0 || selected_ >= store_.workspaces().size()) return {};
     const auto& w = store_.workspaces()[selected_];
     QVariantList zones, before, after;
-    for (const auto& z : w.zones) zones.append(zoneMap(z));
+    for (const auto& z : w.zones) zones.append(zoneMap(z,language()));
     for (const auto& a : w.before) before.append(actionMap(a));
     for (const auto& a : w.after) after.append(actionMap(a));
-    return {{"id", w.id}, {"name", w.name}, {"monitor", w.monitor},
+    return {{"id", w.id}, {"name", displayName(w,language())}, {"monitor", w.monitor},
             {"canvasMode", w.canvasMode}, {"canvasWidth", w.canvasWidth},
             {"canvasHeight", w.canvasHeight}, {"gap", w.gap},
             {"hotkey", w.hotkey}, {"directApply", w.directApply},
@@ -77,6 +97,7 @@ QVariantMap FlowDeckController::preview() const {
                                       {"target", rectMap(p.target)}});
     return {{"canvas", rectMap(currentPlan_.canvas)},
             {"monitorArea", rectMap(currentPlan_.monitorArea)},
+            {"monitorMissing", currentPlan_.monitorMissing},
             {"placements", placements}, {"unassigned", currentPlan_.unassignedZones},
             {"fingerprint", currentPlan_.fingerprint}};
 }
@@ -97,7 +118,7 @@ QVariantMap FlowDeckController::i18n() const {
 QVariantList FlowDeckController::commands() const {
     QVariantList result;
     for (const auto& w : store_.workspaces())
-        result.append(QVariantMap{{"id", "workspace:" + w.id}, {"title", w.name},
+        result.append(QVariantMap{{"id", "workspace:" + w.id}, {"title", displayName(w,language())},
                                   {"hint", text("workspace")}});
     for (const auto& command : Palette::Instance().All())
         result.append(QVariantMap{{"id", QString::fromStdString(command.id)},
@@ -219,7 +240,9 @@ void FlowDeckController::moveZone(int i, double x, double y, double width, doubl
 }
 void FlowDeckController::assignZone(int i, const QString& exe, const QString& cls, const QString& title) {
     auto w = store_.workspaces()[selected_]; if (i < 0 || i >= w.zones.size()) return;
-    w.zones[i].executable = exe; w.zones[i].windowClass = cls; w.zones[i].titlePattern = title; saveCurrent(w);
+    w.zones[i].executable = exe; w.zones[i].windowClass = cls;
+    w.zones[i].titlePattern = title.isEmpty() ? QString() : "^" + QRegularExpression::escape(title) + "$";
+    saveCurrent(w);
 }
 void FlowDeckController::addAction(bool before) {
     auto w = store_.workspaces()[selected_]; (before ? w.before : w.after).append({"launch", {},{}, {},10000}); saveCurrent(w);
@@ -265,8 +288,18 @@ void FlowDeckController::refresh() {
     currentPlan_ = WorkspaceEngine::plan(store_.workspaces()[selected_]); emit windowsChanged(); emit previewChanged();
 }
 void FlowDeckController::setSetting(const QString& key, const QVariant& value) {
-    store_.setSetting(key, QJsonValue::fromVariant(value)); emit settingsChanged(); emit commandsChanged();
+    QVariant accepted = value;
+    if (key == "accent" && !QColor(value.toString()).isValid()) {
+        setStatus(language()=="ru" ? "Неверный цвет" : "Invalid color"); return;
+    }
+    if (key == "scale") accepted = qBound(.8,value.toDouble(),1.5);
+    if (key == "language" && value.toString() != "ru" && value.toString() != "en") return;
+    if (key == "channel" && value.toString() != "preview" && value.toString() != "stable") return;
+    if (key == "density" && value.toString() != "compact" && value.toString() != "comfortable") return;
+    if (key == "contrast" && value.toString() != "normal" && value.toString() != "high") return;
+    store_.setSetting(key, QJsonValue::fromVariant(accepted)); emit settingsChanged(); emit commandsChanged();
     if (key == "paletteHotkey") emit hotkeysChanged();
+    if (key == "language") { emit workspacesChanged(); emit selectedChanged(); }
 }
 void FlowDeckController::restoreSession(bool launchMissing) {
     setStatus(WorkspaceEngine::restore(store_.lastSession(), launchMissing, false)); refresh();

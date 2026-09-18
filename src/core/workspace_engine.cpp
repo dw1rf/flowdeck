@@ -69,6 +69,10 @@ Zone zoneFromJson(const QJsonObject& object) {
                          object.value("y").toDouble(),
                          object.value("w").toDouble(),
                          object.value("h").toDouble());
+    const double width = qBound(.05,zone.bounds.width(),1.0);
+    const double height = qBound(.05,zone.bounds.height(),1.0);
+    zone.bounds = QRectF(qBound(0.0,zone.bounds.x(),1.0-width),
+                         qBound(0.0,zone.bounds.y(),1.0-height),width,height);
     zone.aspectRatio = object.value("aspectRatio").toDouble();
     zone.executable = object.value("executable").toString();
     zone.windowClass = object.value("windowClass").toString();
@@ -277,6 +281,7 @@ LayoutPlan WorkspaceEngine::plan(const Workspace& workspace) {
     if (availableMonitors.isEmpty()) return result;
     const auto found = std::find_if(availableMonitors.begin(), availableMonitors.end(),
         [&](const auto& entry) { return entry.first == workspace.monitor; });
+    result.monitorMissing = !workspace.monitor.isEmpty() && found == availableMonitors.end();
     result.monitorArea = found == availableMonitors.end() ?
         availableMonitors.front().second : found->second;
     result.canvas = fitCanvas(result.monitorArea, workspace);
@@ -510,7 +515,14 @@ QVector<Workspace> defaultWorkspaces() {
     chill.zones = {{"video", "Video 16:9", QRectF(0, 0, .75, 1), {}, {}, {}},
                    {"discord", "Discord", QRectF(.75, 0, .25, 1), {}, {}, {}}};
     chill.zones[0].aspectRatio = 16.0 / 9.0;
-    return {coding, trading, chill};
+    Workspace grid;
+    grid.id = "grid";
+    grid.name = "Grid";
+    grid.zones = {{"top-left", "Top left", QRectF(0,0,.5,.5), {},{},{}},
+                  {"top-right", "Top right", QRectF(.5,0,.5,.5), {},{},{}},
+                  {"bottom-left", "Bottom left", QRectF(0,.5,.5,.5), {},{},{}},
+                  {"bottom-right", "Bottom right", QRectF(.5,.5,.5,.5), {},{},{}}};
+    return {coding, trading, chill, grid};
 }
 
 } // namespace flowdeck
