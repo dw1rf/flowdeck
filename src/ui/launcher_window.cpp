@@ -1,6 +1,7 @@
 #include "ui/launcher_window.hpp"
 
 #include <windowsx.h>
+#include <commctrl.h>
 
 #include <algorithm>
 #include <string>
@@ -134,7 +135,7 @@ bool LauncherWindow::Create(HINSTANCE instance, HWND quit_window) {
     search_ = CreateWindowExW(0, L"EDIT", L"",
                               WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
                               56, 81, 785, 37, hwnd_,
-                              reinterpret_cast<HMENU>(kSearchId), instance,
+                              reinterpret_cast<HMENU>(static_cast<INT_PTR>(kSearchId)), instance,
                               nullptr);
     if (!search_) return false;
     SendMessageW(search_, WM_SETFONT, reinterpret_cast<WPARAM>(font_), TRUE);
