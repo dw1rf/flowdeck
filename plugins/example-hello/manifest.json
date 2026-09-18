@@ -1,0 +1,11 @@
+{
+  "name": "example-hello",
+  "version": "0.1.0",
+  "author": "dw1rf",
+  "description": "Minimal example plugin — adds a Hello command",
+  "entry": "main.py",
+  "commands": [
+    { "id": "hello", "title": "Say Hello", "hotkey": "Ctrl+Shift+H", "scope": "global" }
+  ],
+  "permissions": []
+}
