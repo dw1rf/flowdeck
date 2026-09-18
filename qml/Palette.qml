@@ -13,9 +13,7 @@ ApplicationWindow {
     font.family: "Segoe UI"
     font.pixelSize: 14 * (flowdeck.settings.scale || 1)
     function search() {
-        var q = input.text.toLowerCase().trim()
-        var entries = flowdeck.commands
-        results = entries.filter(function(c) { return q === "" || c.title.toLowerCase().indexOf(q) >= 0 || c.id.toLowerCase().indexOf(q) >= 0 })
+        results = flowdeck.searchCommands(input.text)
         choice = 0
     }
     onVisibleChanged: if (visible) { input.forceActiveFocus(); input.selectAll(); search() }

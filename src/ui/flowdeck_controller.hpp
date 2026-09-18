@@ -43,6 +43,7 @@ class FlowDeckController : public QObject {
     const WorkspaceStore& store() const { return store_; }
 
     Q_INVOKABLE QString text(const QString& key) const;
+    Q_INVOKABLE QVariantList searchCommands(const QString& query) const;
     Q_INVOKABLE void selectWorkspace(int index);
     Q_INVOKABLE void createWorkspace();
     Q_INVOKABLE void duplicateWorkspace();

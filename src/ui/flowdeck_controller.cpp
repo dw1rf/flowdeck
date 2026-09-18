@@ -138,6 +138,40 @@ QVariantList FlowDeckController::commands() const {
     result.append(QVariantMap{{"id", "core:settings"}, {"title", text("settings")}, {"hint", "FlowDeck"}});
     return result;
 }
+QVariantList FlowDeckController::searchCommands(const QString& query) const {
+    const auto all = commands();
+    const auto needle = query.trimmed().toCaseFolded();
+    if (needle.isEmpty()) return all;
+    const auto score = [&needle](const QString& value) {
+        const auto haystack = value.toCaseFolded();
+        int total = 0, next = 0, run = 0;
+        for (const auto character : needle) {
+            bool found = false;
+            while (next < haystack.size()) {
+                if (haystack[next] == character) {
+                    const bool boundary = next == 0 || !haystack[next-1].isLetterOrNumber();
+                    total += boundary ? 12 : 2 + run * 3;
+                    ++run; ++next; found = true; break;
+                }
+                ++next; run = 0;
+            }
+            if (!found) return 0;
+        }
+        if (haystack.startsWith(needle)) total += 8;
+        return qMax(1,total-haystack.size()/16);
+    };
+    QVector<QPair<int,QVariantMap>> ranked;
+    for (const auto& value : all) {
+        const auto command = value.toMap();
+        const int valueScore = qMax(score(command.value("title").toString()),
+                                    score(command.value("id").toString())-5);
+        if (valueScore > 0) ranked.append({valueScore,command});
+    }
+    std::stable_sort(ranked.begin(),ranked.end(),[](const auto& a,const auto& b){return a.first>b.first;});
+    QVariantList result;
+    for (const auto& entry : ranked) result.append(entry.second);
+    return result;
+}
 QVariantList FlowDeckController::plugins() const {
     QVariantList list;
     QDir root(QCoreApplication::applicationDirPath()+"/plugins");

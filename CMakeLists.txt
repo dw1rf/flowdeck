@@ -27,7 +27,7 @@ endif()
 # Needs Python 3.11+ with development headers.
 # Windows: install from python.org, then pass -DPython3_ROOT_DIR="C:/Python312".
 find_package(Python3 3.11 REQUIRED COMPONENTS Interpreter Development.Embed)
-find_package(Qt6 6.8 REQUIRED COMPONENTS Core Gui Quick Qml QuickControls2 Widgets Svg Network)
+find_package(Qt6 6.8 REQUIRED COMPONENTS Core Gui Quick Qml QuickControls2 Widgets Svg Network Test)
 include(FetchContent)
 FetchContent_Declare(lua URL https://www.lua.org/ftp/lua-5.5.1.tar.gz
     URL_HASH SHA256=1c4b4068d67061f2a2231ad2b5422e77acea1487ea9890f6320af614f4373dce)
@@ -60,7 +60,7 @@ target_include_directories(flowdeck PRIVATE src)
 target_compile_definitions(flowdeck PRIVATE FLOWDECK_BUILD_TAG="${FLOWDECK_BUILD_TAG}")
 
 target_link_libraries(flowdeck PRIVATE Python3::Python lua_static Qt6::Core Qt6::Gui Qt6::Quick
-    Qt6::Qml Qt6::QuickControls2 Qt6::Widgets Qt6::Svg Qt6::Network)
+    Qt6::Qml Qt6::QuickControls2 Qt6::Widgets Qt6::Svg Qt6::Network Qt6::Test)
 
 if(WIN32)
     target_link_libraries(flowdeck PRIVATE user32 shell32 dwmapi gdi32 ole32)

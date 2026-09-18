@@ -16,6 +16,7 @@
 #include <QSystemTrayIcon>
 #include <QTimer>
 #include <QThread>
+#include <QTest>
 #include <algorithm>
 #include <filesystem>
 #include <iostream>
@@ -38,6 +39,9 @@ void logMessage(QtMsgType type, const QMessageLogContext& context, const QString
 }
 void stage(const QString& message) {
     if (smokeLog) { smokeLog->write(message.toUtf8()+"\n"); smokeLog->flush(); }
+}
+void closeLog() {
+    if (smokeLog) { qInstallMessageHandler(previousMessageHandler); smokeLog = nullptr; }
 }
 class Hotkeys : public QAbstractNativeEventFilter {
  public:
@@ -134,10 +138,10 @@ int main(int argc, char** argv) {
     engine.load(QUrl(QStringLiteral("qrc:/qml/Manager.qml")));
     engine.load(QUrl(QStringLiteral("qrc:/qml/Palette.qml")));
     stage(QString("QML roots: %1").arg(engine.rootObjects().size()));
-    if (engine.rootObjects().size() != 2) return 1;
+    if (engine.rootObjects().size() != 2) { closeLog(); return 1; }
     auto* manager = qobject_cast<QQuickWindow*>(engine.rootObjects()[0]);
     auto* palette = qobject_cast<QQuickWindow*>(engine.rootObjects()[1]);
-    if (!manager || !palette) { stage("QML root types invalid"); return 1; }
+    if (!manager || !palette) { stage("QML root types invalid"); closeLog(); return 1; }
     QObject::connect(&controller, &flowdeck::FlowDeckController::requestManager,
                      manager, [manager] { manager->show(); manager->raise(); manager->requestActivate(); });
     Hotkeys hotkeys(&controller, manager, palette);
@@ -173,14 +177,13 @@ int main(int argc, char** argv) {
         if (app.arguments().contains("--ui-test")) {
             const auto click = [&](int index) {
                 auto* item = manager->findChild<QQuickItem*>("navigation-"+QString::number(index));
-                if (!item) return false;
+                if (!item) { stage(QString("Navigation %1 not found").arg(index)); return false; }
                 const auto point = item->mapToScene(QPointF(item->width()/2,item->height()/2));
-                QMouseEvent press(QEvent::MouseButtonPress,point,Qt::LeftButton,Qt::LeftButton,Qt::NoModifier);
-                QMouseEvent release(QEvent::MouseButtonRelease,point,Qt::LeftButton,Qt::NoButton,Qt::NoModifier);
-                QCoreApplication::sendEvent(manager,&press);
-                QCoreApplication::sendEvent(manager,&release);
+                QTest::mouseClick(manager,Qt::LeftButton,Qt::NoModifier,point.toPoint());
                 app.processEvents();
-                return manager->property("page").toInt() == index;
+                const auto page = manager->property("page").toInt();
+                stage(QString("Navigation %1 -> %2 at %3,%4").arg(index).arg(page).arg(point.x()).arg(point.y()));
+                return page == index;
             };
             navigationPassed = click(3) && click(1) && click(0);
             stage(QString("UI navigation=%1").arg(navigationPassed));
@@ -200,6 +203,7 @@ int main(int argc, char** argv) {
                 [&](const flowdeck::Command& c) { return c.id == id; });
         };
         const bool passed = geometryPassed && navigationPassed && manager->isVisible() && pythonReady &&
+                            !controller.searchCommands("lua").isEmpty() &&
                             has("example-hello:hello") && has("example_cpp:hello") &&
                             has("example-lua:hello") &&
                             paletteCore.ExecuteById("example-hello:hello") &&
@@ -215,6 +219,7 @@ int main(int argc, char** argv) {
         flowdeck::PythonPluginLoader::Instance().UnloadAll();
         flowdeck::python::Shutdown();
         if (SUCCEEDED(comResult)) CoUninitialize();
+        closeLog();
         return passed ? 0 : 1;
     }
     if (controller.store().lastSession().value("windows").toArray().isEmpty())
@@ -232,5 +237,6 @@ int main(int argc, char** argv) {
     flowdeck::PythonPluginLoader::Instance().UnloadAll();
     flowdeck::python::Shutdown();
     if (SUCCEEDED(comResult)) CoUninitialize();
+    closeLog();
     return result;
 }
