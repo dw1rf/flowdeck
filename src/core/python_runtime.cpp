@@ -1,5 +1,7 @@
 #include "core/python_runtime.hpp"
 
+#include <windows.h>
+
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 

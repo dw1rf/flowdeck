@@ -43,7 +43,7 @@ typedef struct FlowDeckPluginVTable {
 } FlowDeckPluginVTable;
 
 // Exported symbol a plugin DLL must provide.
-typedef FlowDeckPluginVTable (*FlowDeckPluginGetVTable)(void);
+typedef FlowDeckPluginVTable (*FlowDeckPluginGetVTableFn)(void);
 
 #ifdef __cplusplus
 }  // extern "C"

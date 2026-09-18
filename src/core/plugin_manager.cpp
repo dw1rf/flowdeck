@@ -38,7 +38,7 @@ void PluginManager::LoadAll(const std::wstring& dir) {
             continue;
         }
 
-        auto get_vtable = reinterpret_cast<FlowDeckPluginGetVTable>(
+        auto get_vtable = reinterpret_cast<FlowDeckPluginGetVTableFn>(
             GetProcAddress(mod, "FlowDeckPluginGetVTable"));
         if (!get_vtable) {
             std::wcerr << L"[plugins] missing FlowDeckPluginGetVTable in "

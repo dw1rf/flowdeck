@@ -4,6 +4,7 @@
 // plugins, registers global hotkeys and pumps the Win32 message loop.
 
 #include <windows.h>
+#include <shellapi.h>
 
 #include <algorithm>
 #include <filesystem>
