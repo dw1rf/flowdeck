@@ -3,7 +3,7 @@ function on_load()
 end
 
 COMMANDS = {
-    { id = "hello", title = "Say Hello (Lua)" }
+    { id = "hello", title = "Say Hello (Lua)", title_ru = "Поздороваться (Lua)" }
 }
 
 function run_hello()

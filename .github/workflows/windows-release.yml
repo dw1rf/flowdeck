@@ -31,7 +31,8 @@ jobs:
         shell: pwsh
         run: |
           $pythonRoot = Split-Path (Get-Command python).Source
-          cmake -S . -B build -A x64 -DPython3_ROOT_DIR="$pythonRoot" -DCMAKE_PREFIX_PATH="C:/Qt/6.8.3/msvc2022_64"
+          $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { "build-$env:GITHUB_RUN_NUMBER" }
+          cmake -S . -B build -A x64 -DPython3_ROOT_DIR="$pythonRoot" -DCMAKE_PREFIX_PATH="C:/Qt/6.8.3/msvc2022_64" -DFLOWDECK_BUILD_TAG="$tag"
 
       - name: Build
         run: cmake --build build --config Release --parallel

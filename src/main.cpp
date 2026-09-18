@@ -1,10 +1,14 @@
 #include <windows.h>
 #include <QApplication>
+#include <QAbstractNativeEventFilter>
 #include <QIcon>
+#include <QJsonArray>
+#include <QMenu>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQuickWindow>
 #include <QSystemTrayIcon>
+#include <QTimer>
 #include <algorithm>
 #include <filesystem>
 #include <iostream>
@@ -13,6 +17,8 @@
 #include "core/python_plugin_loader.hpp"
 #include "core/python_runtime.hpp"
 #include "core/lua_plugin_loader.hpp"
+#include "core/update_manager.hpp"
+#include "core/notifications.hpp"
 #include "ui/flowdeck_controller.hpp"
 
 namespace {
@@ -76,8 +82,10 @@ int main(int argc, char** argv) {
     }
     flowdeck::LuaPluginLoader::instance().loadAll(pluginDir);
     flowdeck::FlowDeckController controller;
+    flowdeck::UpdateManager updater;
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty("flowdeck", &controller);
+    engine.rootContext()->setContextProperty("updater", &updater);
     engine.load(QUrl(QStringLiteral("qrc:/qml/Manager.qml")));
     engine.load(QUrl(QStringLiteral("qrc:/qml/Palette.qml")));
     if (engine.rootObjects().size() != 2) return 1;
@@ -93,6 +101,11 @@ int main(int argc, char** argv) {
     hotkeys.registerAll();
     QSystemTrayIcon tray(QIcon(":/icons/flowdeck.svg"));
     tray.setToolTip("FlowDeck");
+    QMenu trayMenu;
+    QObject::connect(trayMenu.addAction("Open FlowDeck"), &QAction::triggered, manager,
+                     [manager] { manager->show(); manager->raise(); manager->requestActivate(); });
+    QObject::connect(trayMenu.addAction("Quit"), &QAction::triggered, &app, &QCoreApplication::quit);
+    tray.setContextMenu(&trayMenu);
     QObject::connect(&tray, &QSystemTrayIcon::activated, manager,
                      [manager](QSystemTrayIcon::ActivationReason reason) {
                          if (reason == QSystemTrayIcon::Trigger || reason == QSystemTrayIcon::DoubleClick) {
@@ -100,6 +113,7 @@ int main(int argc, char** argv) {
                          }
                      });
     tray.show();
+    flowdeck::setNotificationTray(&tray);
     if (app.arguments().contains("--smoke-test")) {
         const auto& commands = paletteCore.All();
         const auto has = [&](const std::string& id) {
@@ -112,14 +126,20 @@ int main(int argc, char** argv) {
                             paletteCore.ExecuteById("example_cpp:hello");
         std::cout << (passed ? "[smoke] passed\n" : "[smoke] failed\n");
         hotkeys.unregisterAll();
+        flowdeck::setNotificationTray(nullptr);
         flowdeck::LuaPluginLoader::instance().unloadAll();
         flowdeck::PythonPluginLoader::Instance().UnloadAll();
         flowdeck::python::Shutdown();
         return passed ? 0 : 1;
     }
-    controller.store().beginAutosave();
+    if (controller.store().lastSession().value("windows").toArray().isEmpty())
+        controller.store().beginAutosave();
+    QTimer::singleShot(1000, &updater, [&updater, &controller] {
+        updater.check(controller.settings().value("channel").toString());
+    });
     const int result = app.exec();
     hotkeys.unregisterAll();
+    flowdeck::setNotificationTray(nullptr);
     flowdeck::LuaPluginLoader::instance().unloadAll();
     flowdeck::PythonPluginLoader::Instance().UnloadAll();
     flowdeck::python::Shutdown();

@@ -168,11 +168,21 @@ QVector<WindowRecord> WorkspaceEngine::undoWindows_;
 
 QVector<WindowRecord> WorkspaceEngine::windows() {
     QVector<WindowRecord> result;
+    IVirtualDesktopManager* desktop = nullptr;
+    CoCreateInstance(CLSID_VirtualDesktopManager, nullptr, CLSCTX_ALL,
+                     IID_PPV_ARGS(&desktop));
+    struct Context { QVector<WindowRecord>* output; IVirtualDesktopManager* desktop; } context{&result, desktop};
     EnumWindows([](HWND window, LPARAM context) -> BOOL {
-        auto* output = reinterpret_cast<QVector<WindowRecord>*>(context);
+        auto* state = reinterpret_cast<Context*>(context);
+        auto* output = state->output;
         if (!IsWindowVisible(window) || GetWindow(window, GW_OWNER) ||
             GetWindowLongPtrW(window, GWL_EXSTYLE) & (WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE))
             return TRUE;
+        if (state->desktop) {
+            BOOL current = FALSE;
+            if (SUCCEEDED(state->desktop->IsWindowOnCurrentVirtualDesktop(window, &current)) && !current)
+                return TRUE;
+        }
         DWORD pid = 0;
         GetWindowThreadProcessId(window, &pid);
         if (pid == GetCurrentProcessId()) return TRUE;
@@ -203,7 +213,8 @@ QVector<WindowRecord> WorkspaceEngine::windows() {
                         fromWide(className), monitorFor(window),
                         fromRect(bounds), static_cast<int>(placement.showCmd)});
         return TRUE;
-    }, reinterpret_cast<LPARAM>(&result));
+    }, reinterpret_cast<LPARAM>(&context));
+    if (desktop) desktop->Release();
     return result;
 }
 
@@ -247,6 +258,7 @@ QString WorkspaceEngine::fingerprint(const QVector<WindowRecord>& list) {
         serialized += QByteArray::number(window.rect.y()) + ',';
         serialized += QByteArray::number(window.rect.width()) + ',';
         serialized += QByteArray::number(window.rect.height()) + ';';
+        serialized += QByteArray::number(window.showCommand) + window.monitor.toUtf8();
     }
     return QString::fromLatin1(QCryptographicHash::hash(serialized,
         QCryptographicHash::Sha256).toHex());
@@ -345,6 +357,9 @@ bool WorkspaceEngine::undo(QString* error) {
 
 QJsonObject WorkspaceEngine::snapshot() {
     QJsonArray array;
+    QJsonArray displayArray;
+    for (const auto& monitor : monitors())
+        displayArray.append(QJsonObject{{"name",monitor.first},{"workArea",rectJson(monitor.second)}});
     for (const auto& window : windows()) {
         array.append(QJsonObject{{"title", window.title},
             {"executable", window.executable}, {"windowClass", window.windowClass},
@@ -352,12 +367,14 @@ QJsonObject WorkspaceEngine::snapshot() {
             {"showCommand", window.showCommand}});
     }
     return {{"version", 1}, {"savedAt", QDateTime::currentDateTimeUtc().toString(Qt::ISODate)},
-            {"windows", array}};
+            {"monitors", displayArray}, {"windows", array}};
 }
 
 QString WorkspaceEngine::restore(const QJsonObject& saved, bool launchMissing,
                                   bool previewOnly) {
     const auto records = saved.value("windows").toArray();
+    const auto displays = monitors();
+    const auto oldDisplays = saved.value("monitors").toArray();
     auto live = windows();
     QSet<HWND> matched;
     int restored = 0;
@@ -382,14 +399,35 @@ QString WorkspaceEngine::restore(const QJsonObject& saved, bool launchMissing,
         }
         if (found == live.end()) {
             ++missing;
-            if (launchMissing && !previewOnly && !executable.isEmpty())
+            if (launchMissing && !previewOnly && !executable.isEmpty()) {
                 QProcess::startDetached(executable, {});
-            continue;
+                QElapsedTimer wait; wait.start();
+                while (wait.elapsed() < 10000) {
+                    QThread::msleep(200);
+                    live = windows();
+                    found = std::find_if(live.begin(),live.end(),[&](const WindowRecord& item) {
+                        return !matched.contains(item.handle) && item.executable.compare(executable,Qt::CaseInsensitive)==0;
+                    });
+                    if (found != live.end()) { --missing; break; }
+                }
+            }
+            if (found == live.end()) continue;
         }
         matched.insert(found->handle);
         if (!previewOnly) {
-            const auto rect = rectFromJson(record.value("rect").toObject());
+            auto rect = rectFromJson(record.value("rect").toObject());
             if (!rect.isValid()) continue;
+            const auto monitorName = record.value("monitor").toString();
+            auto screen = std::find_if(displays.begin(),displays.end(),[&](const auto& d){return d.first==monitorName;});
+            if (screen == displays.end() && !displays.isEmpty()) {
+                QRect oldArea;
+                for (const auto& d : oldDisplays) if (d.toObject().value("name").toString()==monitorName)
+                    oldArea = rectFromJson(d.toObject().value("workArea").toObject());
+                const auto& newArea = displays.front().second;
+                if (oldArea.isValid()) rect.translate(newArea.topLeft()-oldArea.topLeft());
+                rect.moveLeft(qBound(newArea.left(),rect.left(),newArea.right()-qMin(rect.width(),newArea.width())+1));
+                rect.moveTop(qBound(newArea.top(),rect.top(),newArea.bottom()-qMin(rect.height(),newArea.height())+1));
+            }
             ShowWindow(found->handle, SW_RESTORE);
             SetWindowPos(found->handle, nullptr, rect.x(), rect.y(), rect.width(),
                          rect.height(), SWP_NOZORDER | SWP_NOACTIVATE);

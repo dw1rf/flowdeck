@@ -14,12 +14,14 @@ extern "C" {
 #include <filesystem>
 #include <iostream>
 #include "core/palette.hpp"
+#include "core/notifications.hpp"
 
 namespace flowdeck {
 namespace {
 int notify(lua_State* state) {
     const char* value = luaL_checkstring(state, 1);
     std::cout << "[lua-plugin] " << value << '\n';
+    flowdeck::notify(QString::fromUtf8(value));
     return 0;
 }
 }
@@ -30,9 +32,12 @@ struct LuaPluginLoader::Plugin {
     ~Plugin() {
         if (!state) return;
         lua_getglobal(state, "on_unload");
-        if (lua_isfunction(state, -1) && lua_pcall(state, 0, 0, 0) != LUA_OK)
-            std::cerr << lua_tostring(state, -1) << '\n';
-        else if (!lua_isfunction(state, -1)) lua_pop(state, 1);
+        if (lua_isfunction(state, -1)) {
+            if (lua_pcall(state, 0, 0, 0) != LUA_OK) {
+                std::cerr << lua_tostring(state, -1) << '\n';
+                lua_pop(state, 1);
+            }
+        } else lua_pop(state, 1);
         for (const auto& id : commands) Palette::Instance().RemoveCommand(id);
         lua_close(state);
     }
@@ -83,6 +88,12 @@ void LuaPluginLoader::loadAll(const std::wstring& directory) {
                 lua_getfield(plugin->state,-1,"title");
                 const auto title = lua_isstring(plugin->state,-1) ? std::string(lua_tostring(plugin->state,-1)) : "";
                 lua_pop(plugin->state,1);
+                lua_getfield(plugin->state,-1,"title_ru");
+                const auto titleRu = lua_isstring(plugin->state,-1) ? std::string(lua_tostring(plugin->state,-1)) : "";
+                lua_pop(plugin->state,1);
+                lua_getfield(plugin->state,-1,"title_en");
+                const auto titleEn = lua_isstring(plugin->state,-1) ? std::string(lua_tostring(plugin->state,-1)) : "";
+                lua_pop(plugin->state,1);
                 if (!id.empty() && !title.empty()) {
                     const auto fullId = plugin->name + ":" + id;
                     auto* state = plugin->state;
@@ -94,7 +105,7 @@ void LuaPluginLoader::loadAll(const std::wstring& directory) {
                                 lua_pop(state,1);
                             }
                         } else lua_pop(state,1);
-                    }});
+                    },titleRu,titleEn});
                     plugin->commands.push_back(fullId);
                 }
                 lua_pop(plugin->state,1);

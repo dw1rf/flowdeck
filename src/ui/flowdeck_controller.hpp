@@ -63,6 +63,7 @@ class FlowDeckController : public QObject {
     Q_INVOKABLE void refresh();
     Q_INVOKABLE void setSetting(const QString& key, const QVariant& value);
     Q_INVOKABLE void restoreSession(bool launchMissing);
+    Q_INVOKABLE void dismissRestoration();
     Q_INVOKABLE QString restorationSummary() const;
     Q_INVOKABLE void runCommand(const QString& id);
     Q_INVOKABLE void openPluginsFolder();

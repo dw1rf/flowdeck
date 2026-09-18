@@ -75,6 +75,16 @@ ApplicationWindow {
                 ActionButton { text: "⟳"; onClicked: flowdeck.refresh() }
             }
             Rectangle {
+                visible: updater.ready
+                Layout.fillWidth: true; implicitHeight: 54; radius: 10; color: "#26453f"; border.color: root.accent
+                RowLayout {
+                    anchors.fill: parent; anchors.margins: 9
+                    Text { text: updater.status; color: "#e6f5f1" }
+                    Item { Layout.fillWidth: true }
+                    ActionButton { text: "Install update"; primary: true; onClicked: updateDialog.open() }
+                }
+            }
+            Rectangle {
                 visible: root.restoreVisible && root.page === 0
                 Layout.fillWidth: true; implicitHeight: 75; radius: 10; color: "#2c352e"; border.color: "#738553"
                 RowLayout {
@@ -85,7 +95,7 @@ ApplicationWindow {
                     }
                     Item { Layout.fillWidth: true }
                     ActionButton { text: flowdeck.text("restore"); onClicked: restoreDialog.open() }
-                    ActionButton { text: "×"; onClicked: root.restoreVisible = false }
+                    ActionButton { text: "×"; onClicked: { root.restoreVisible = false; flowdeck.dismissRestoration() } }
                 }
             }
             RowLayout {
@@ -230,7 +240,9 @@ ApplicationWindow {
                         Repeater {
                             model: [true,false]
                             delegate: ColumnLayout {
+                                id: actionSection
                                 required property var modelData
+                                property bool beforeActions: modelData
                                 Layout.fillWidth: true
                                 LabelText { text: modelData ? flowdeck.text("actionsBefore") : flowdeck.text("actionsAfter") }
                                 Repeater {
@@ -239,11 +251,11 @@ ApplicationWindow {
                                         required property int index
                                         required property var modelData
                                         Layout.fillWidth: true
-                                        SelectBox { model: ["launch","powershell","wait","focus","minimize","plugin"]; currentIndex: Math.max(0,model.indexOf(modelData.type)); onActivated: flowdeck.editAction(parent.parent.modelData,index,"type",currentText) }
-                                        Field { Layout.fillWidth: true; text: modelData.program; placeholderText: "EXE / plugin ID"; onEditingFinished: flowdeck.editAction(parent.parent.modelData,index,"program",text) }
-                                        Field { Layout.fillWidth: true; text: modelData.arguments; placeholderText: "Arguments"; onEditingFinished: flowdeck.editAction(parent.parent.modelData,index,"arguments",text) }
-                                        Field { Layout.fillWidth: true; text: modelData.script; placeholderText: "Script / title"; onEditingFinished: flowdeck.editAction(parent.parent.modelData,index,"script",text) }
-                                        ActionButton { text: "×"; onClicked: flowdeck.removeAction(parent.parent.modelData,index) }
+                                        SelectBox { model: ["launch","powershell","wait","focus","minimize","plugin"]; currentIndex: Math.max(0,model.indexOf(modelData.type)); onActivated: flowdeck.editAction(actionSection.beforeActions,index,"type",currentText) }
+                                        Field { Layout.fillWidth: true; text: modelData.program; placeholderText: "EXE / plugin ID"; onEditingFinished: flowdeck.editAction(actionSection.beforeActions,index,"program",text) }
+                                        Field { Layout.fillWidth: true; text: modelData.arguments; placeholderText: "Arguments"; onEditingFinished: flowdeck.editAction(actionSection.beforeActions,index,"arguments",text) }
+                                        Field { Layout.fillWidth: true; text: modelData.script; placeholderText: "Script / title"; onEditingFinished: flowdeck.editAction(actionSection.beforeActions,index,"script",text) }
+                                        ActionButton { text: "×"; onClicked: flowdeck.removeAction(actionSection.beforeActions,index) }
                                     }
                                 }
                                 ActionButton { text: "+"; onClicked: flowdeck.addAction(modelData) }
@@ -273,6 +285,8 @@ ApplicationWindow {
                 SelectBox { model: ["comfortable","compact"]; currentIndex: model.indexOf(flowdeck.settings.density); onActivated: flowdeck.setSetting("density", currentText) }
                 LabelText { text: flowdeck.text("channel") }
                 SelectBox { model: ["preview","stable"]; currentIndex: model.indexOf(flowdeck.settings.channel); onActivated: flowdeck.setSetting("channel", currentText) }
+                ActionButton { text: "Check updates"; onClicked: updater.check(flowdeck.settings.channel) }
+                LabelText { text: updater.status }
                 Item { Layout.fillHeight: true }
             }
             Text { text: flowdeck.status; color: "#e5ad7d"; Layout.fillWidth: true; elide: Text.ElideRight }
@@ -280,9 +294,18 @@ ApplicationWindow {
     }
     Dialog {
         id: restoreDialog; title: flowdeck.text("restore"); modal: true; anchors.centerIn: parent
-        standardButtons: Dialog.Yes | Dialog.No | Dialog.Cancel
-        contentItem: Column { spacing: 12; Text { text: flowdeck.restorationSummary(); color: "#e5eeee" }; Text { text: flowdeck.text("launchMissing"); color: "#e5eeee" } }
-        onAccepted: { flowdeck.restoreSession(true); root.restoreVisible = false }
-        onRejected: { flowdeck.restoreSession(false); root.restoreVisible = false }
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        contentItem: Column { spacing: 12
+            Text { text: flowdeck.restorationSummary(); color: "#e5eeee" }
+            CheckBox { id: launchMissingCheck; text: flowdeck.text("launchMissing"); checked: false }
+        }
+        onAccepted: { flowdeck.restoreSession(launchMissingCheck.checked); root.restoreVisible = false }
+        onRejected: { flowdeck.dismissRestoration(); root.restoreVisible = false }
+    }
+    Dialog {
+        id: updateDialog; modal: true; anchors.centerIn: parent
+        title: "Install " + updater.availableVersion + "?"
+        standardButtons: Dialog.Yes | Dialog.Cancel
+        onAccepted: updater.install()
     }
 }

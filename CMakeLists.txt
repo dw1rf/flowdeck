@@ -4,6 +4,7 @@ project(FlowDeck
     VERSION 0.2.0
     DESCRIPTION "Universal command palette with window tiling and Python plugins"
     LANGUAGES C CXX)
+set(FLOWDECK_BUILD_TAG "local" CACHE STRING "Release tag embedded in the executable")
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -50,16 +51,19 @@ add_executable(flowdeck WIN32
     src/core/lua_plugin_loader.cpp
     src/core/workspace_engine.cpp
     src/core/workspace_store.cpp
+    src/core/update_manager.cpp
+    src/core/notifications.cpp
     src/ui/flowdeck_controller.cpp
     resources.qrc)
 
 target_include_directories(flowdeck PRIVATE src)
+target_compile_definitions(flowdeck PRIVATE FLOWDECK_BUILD_TAG="${FLOWDECK_BUILD_TAG}")
 
 target_link_libraries(flowdeck PRIVATE Python3::Python lua_static Qt6::Core Qt6::Gui Qt6::Quick
     Qt6::Qml Qt6::QuickControls2 Qt6::Widgets Qt6::Svg Qt6::Network)
 
 if(WIN32)
-    target_link_libraries(flowdeck PRIVATE user32 shell32 dwmapi gdi32)
+    target_link_libraries(flowdeck PRIVATE user32 shell32 dwmapi gdi32 ole32)
     add_subdirectory(plugins/example-cpp)
 endif()
 

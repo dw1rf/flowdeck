@@ -11,6 +11,8 @@ struct Command {
     std::string title;
     std::string hint;  // e.g. "plugin: notes"
     std::function<void()> run;
+    std::string titleRu;
+    std::string titleEn;
 };
 
 // Holds every registered command, ranks them against the current query

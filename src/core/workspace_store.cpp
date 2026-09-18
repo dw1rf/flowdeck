@@ -53,7 +53,9 @@ WorkspaceStore::WorkspaceStore(QObject* parent) : QObject(parent) {
     writeTimer_.setSingleShot(true);
     writeTimer_.setInterval(1200);
     connect(&writeTimer_, &QTimer::timeout, this, [this] {
-        write("last-session.json", WorkspaceEngine::snapshot(), nullptr);
+        const auto snapshot = WorkspaceEngine::snapshot();
+        if (!write("last-session.json", snapshot, nullptr)) return;
+        lastSession_ = snapshot;
         emit sessionChanged();
     });
 }

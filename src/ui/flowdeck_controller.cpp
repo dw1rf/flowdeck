@@ -1,6 +1,7 @@
 #include "ui/flowdeck_controller.hpp"
 
 #include <QDesktopServices>
+#include <QCoreApplication>
 #include <QFile>
 #include <QFileDialog>
 #include <QJsonDocument>
@@ -86,7 +87,8 @@ QVariantList FlowDeckController::commands() const {
                                   {"hint", text("workspace")}});
     for (const auto& command : Palette::Instance().All())
         result.append(QVariantMap{{"id", QString::fromStdString(command.id)},
-                                  {"title", QString::fromStdString(command.title)},
+                                  {"title", QString::fromStdString(language() == "ru" && !command.titleRu.empty() ? command.titleRu :
+                                                                    language() == "en" && !command.titleEn.empty() ? command.titleEn : command.title)},
                                   {"hint", QString::fromStdString(command.hint)}});
     result.append(QVariantMap{{"id", "core:undo"}, {"title", text("undo")}, {"hint", "FlowDeck"}});
     result.append(QVariantMap{{"id", "core:settings"}, {"title", text("settings")}, {"hint", "FlowDeck"}});
@@ -240,7 +242,9 @@ void FlowDeckController::setSetting(const QString& key, const QVariant& value) {
 }
 void FlowDeckController::restoreSession(bool launchMissing) {
     setStatus(WorkspaceEngine::restore(store_.lastSession(), launchMissing, false)); refresh();
+    store_.beginAutosave();
 }
+void FlowDeckController::dismissRestoration() { store_.beginAutosave(); }
 QString FlowDeckController::restorationSummary() const {
     return WorkspaceEngine::restore(store_.lastSession(), false, true);
 }
