@@ -34,11 +34,18 @@ Copy-Item -LiteralPath $exe -Destination $bundle
 Copy-Item -LiteralPath (Join-Path $root 'LICENSE') -Destination $bundle
 Copy-Item -LiteralPath (Join-Path $root 'README.md') -Destination $bundle
 Copy-Item -LiteralPath (Join-Path $root 'plugins/example-hello') -Destination (Join-Path $bundle 'plugins/example-hello') -Recurse
+Copy-Item -LiteralPath (Join-Path $root 'plugins/example-lua') -Destination (Join-Path $bundle 'plugins/example-lua') -Recurse
 Copy-Item -LiteralPath $nativePlugin -Destination (Join-Path $bundle 'plugins')
 
 Get-ChildItem -LiteralPath $embedDirectory -File |
     Where-Object { $_.Extension -ne '.exe' } |
     Copy-Item -Destination $bundle
+
+$qtDir = 'C:/Qt/6.8.3/msvc2022_64'
+$deploy = Join-Path $qtDir 'bin/windeployqt.exe'
+if (-not (Test-Path -LiteralPath $deploy)) { throw "Qt deployment tool missing: $deploy" }
+& $deploy --release --qmldir (Join-Path $root 'qml') --no-translations (Join-Path $bundle 'flowdeck.exe')
+if ($LASTEXITCODE -ne 0) { throw 'Qt deployment failed' }
 
 $pythonLicense = Join-Path $bundle 'LICENSE.txt'
 if (Test-Path -LiteralPath $pythonLicense) {
