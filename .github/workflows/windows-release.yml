@@ -49,7 +49,7 @@ jobs:
           $exe = Join-Path $testRoot 'FlowDeck-x64/flowdeck.exe'
           $env:FLOWDECK_SMOKE_LOG = "$testRoot/flowdeck.log"
           $env:FLOWDECK_SMOKE_SCREENSHOT = "$testRoot/flowdeck-ui.png"
-          $process = Start-Process -FilePath $exe -ArgumentList '--smoke-test' -PassThru -Wait -RedirectStandardOutput "$testRoot/stdout.txt" -RedirectStandardError "$testRoot/stderr.txt"
+          $process = Start-Process -FilePath $exe -ArgumentList '--smoke-test --ui-test' -PassThru -Wait -RedirectStandardOutput "$testRoot/stdout.txt" -RedirectStandardError "$testRoot/stderr.txt"
           Get-Content "$testRoot/flowdeck.log" -ErrorAction SilentlyContinue
           Get-Content "$testRoot/stdout.txt" -ErrorAction SilentlyContinue
           Get-Content "$testRoot/stderr.txt" -ErrorAction SilentlyContinue

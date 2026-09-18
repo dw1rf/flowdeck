@@ -40,7 +40,7 @@ cmake --build build --config Release
 
 The package script downloads Python's embeddable distribution and runs `windeployqt`. CI also builds the Inno Setup installer, calculates its SHA-256, installs it in a temporary directory, and runs a packaged smoke test. Pull requests upload artifacts but do not publish releases. Successful pushes to `main` publish Preview releases; `v*` tags publish Stable releases.
 
-Run `flowdeck.exe --smoke-test` to check Qt loading, plugin commands, and the 3440×1440 canvas calculation without moving windows. Interactive hotkeys and real window placement still require a desktop test.
+Run `flowdeck.exe --smoke-test` to check Qt loading, Python/Lua/C++ commands, and the 3440×1440 canvas calculation without moving windows. Add `--ui-test` to click through the built-in screens without changing other windows. Interactive hotkeys and real window placement still require a desktop test.
 
 ## License
 

@@ -7,9 +7,11 @@
 #include <QJsonArray>
 #include <QImage>
 #include <QMenu>
+#include <QMouseEvent>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQuickWindow>
+#include <QQuickItem>
 #include <QQuickStyle>
 #include <QSystemTrayIcon>
 #include <QTimer>
@@ -167,6 +169,22 @@ int main(int argc, char** argv) {
             const bool saved = manager->grabWindow().save(screenshot);
             stage(QString("UI screenshot saved=%1").arg(saved));
         }
+        bool navigationPassed = true;
+        if (app.arguments().contains("--ui-test")) {
+            const auto click = [&](int index) {
+                auto* item = manager->findChild<QQuickItem*>("navigation-"+QString::number(index));
+                if (!item) return false;
+                const auto point = item->mapToScene(QPointF(item->width()/2,item->height()/2));
+                QMouseEvent press(QEvent::MouseButtonPress,point,Qt::LeftButton,Qt::LeftButton,Qt::NoModifier);
+                QMouseEvent release(QEvent::MouseButtonRelease,point,Qt::LeftButton,Qt::NoButton,Qt::NoModifier);
+                QCoreApplication::sendEvent(manager,&press);
+                QCoreApplication::sendEvent(manager,&release);
+                app.processEvents();
+                return manager->property("page").toInt() == index;
+            };
+            navigationPassed = click(3) && click(1) && click(0);
+            stage(QString("UI navigation=%1").arg(navigationPassed));
+        }
         flowdeck::Workspace geometry;
         geometry.canvasMode = "16:9";
         geometry.canvasHeight = 1440;
@@ -181,7 +199,7 @@ int main(int argc, char** argv) {
             return std::any_of(commands.begin(), commands.end(),
                 [&](const flowdeck::Command& c) { return c.id == id; });
         };
-        const bool passed = geometryPassed && manager->isVisible() && pythonReady &&
+        const bool passed = geometryPassed && navigationPassed && manager->isVisible() && pythonReady &&
                             has("example-hello:hello") && has("example_cpp:hello") &&
                             has("example-lua:hello") &&
                             paletteCore.ExecuteById("example-hello:hello") &&

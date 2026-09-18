@@ -62,6 +62,7 @@ ApplicationWindow {
                     delegate: Rectangle {
                         required property int index
                         required property string modelData
+                        objectName: "navigation-" + index
                         Layout.fillWidth: true; height: root.compact ? 36 : 44; radius: 9
                         color: root.page === index ? "#29433f" : "transparent"
                         Text { anchors.centerIn: parent; text: modelData; color: root.page === index ? root.accent : "#b1c0c6"; font.pixelSize: 15 }
