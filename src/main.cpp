@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <objbase.h>
 #include <QApplication>
 #include <QFile>
 #include <QAbstractNativeEventFilter>
@@ -71,7 +72,10 @@ class Hotkeys : public QAbstractNativeEventFilter {
         } else if (msg->wParam >= 100) {
             const int index = static_cast<int>(msg->wParam) - 100;
             controller_->selectWorkspace(index);
-            if (controller_->selectedWorkspace().value("directApply").toBool()) controller_->applySelected();
+            if (controller_->selectedWorkspace().value("directApply").toBool()) {
+                controller_->applySelected();
+                if (controller_->prepared()) { manager_->show(); manager_->raise(); manager_->requestActivate(); }
+            }
             else { manager_->show(); manager_->raise(); manager_->requestActivate(); }
         }
         return true;
@@ -179,8 +183,10 @@ int main(int argc, char** argv) {
         };
         const bool passed = geometryPassed && manager->isVisible() && pythonReady &&
                             has("example-hello:hello") && has("example_cpp:hello") &&
+                            has("example-lua:hello") &&
                             paletteCore.ExecuteById("example-hello:hello") &&
-                            paletteCore.ExecuteById("example_cpp:hello");
+                            paletteCore.ExecuteById("example_cpp:hello") &&
+                            paletteCore.ExecuteById("example-lua:hello");
         stage(QString("Smoke geometry=%1 UI=%2 Python=%3 Cpp=%4 Lua=%5")
               .arg(geometryPassed).arg(manager->isVisible()).arg(pythonReady)
               .arg(has("example_cpp:hello")).arg(flowdeck::LuaPluginLoader::instance().count()));

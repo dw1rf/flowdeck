@@ -22,7 +22,7 @@ FlowDeck saves an automatic snapshot of the current user windows in `%LOCALAPPDA
 
 Python plugins have `plugins/<name>/manifest.json` and `main.py`. [The Python example](plugins/example-hello/main.py) shows `COMMANDS`, `run_<id>`, and `flowdeck.notify()`. Command dictionaries may include `title_ru` and `title_en` for localized titles.
 
-Lua 5.5.1 plugins use the same manifest format with `"entry": "main.lua"`. [The Lua example](plugins/example-lua/main.lua) shows the same command and notification API. Lua commands are declared in a global `COMMANDS` table and implemented as `run_<id>()`. Python and Lua plugins run as trusted local code with the user's system permissions; review a plugin before placing it in the plugins folder. Restart FlowDeck after plugin changes.
+Lua 5.5.1 plugins use the same manifest format with `"entry": "main.lua"`. [The Lua example](plugins/example-lua/main.lua) shows the same command and notification API. Lua commands are declared in a global `COMMANDS` table and implemented as `run_<id>()`. Python, Lua, and native plugins run as trusted local code with the user's system permissions; review a plugin before installing it. Restart FlowDeck after plugin changes.
 
 ## Updates
 

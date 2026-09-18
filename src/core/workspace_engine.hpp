@@ -75,8 +75,9 @@ class WorkspaceEngine {
     static QRect fitCanvas(const QRect& workArea, const Workspace& workspace);
     static LayoutPlan plan(const Workspace& workspace);
     static QString fingerprint(const QVector<WindowRecord>& windows);
+    static bool prepare(const Workspace& workspace, QString* error);
     static bool apply(const LayoutPlan& plan, const Workspace& workspace,
-                      QString* error);
+                      QString* error, bool skipBefore = false);
     static bool undo(QString* error);
     static QJsonObject snapshot();
     static QString restore(const QJsonObject& snapshot, bool launchMissing,

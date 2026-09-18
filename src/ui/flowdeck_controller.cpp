@@ -176,8 +176,8 @@ QString FlowDeckController::text(const QString& key) const {
                           "A previous session was found. Compare windows before restoring."}},
         {"launchMissing", {"Запустить закрытые приложения?", "Launch closed applications?"}},
         {"trust", {"Я проверил действия и доверяю профилю", "I reviewed and trust these actions"}},
-        {"pluginWarning", {"Плагины Python и Lua выполняют доверенный локальный код с доступом к системе.",
-                            "Python and Lua plugins run trusted local code with system access."}},
+        {"pluginWarning", {"Плагины Python, Lua и C++ выполняют доверенный локальный код с доступом к системе.",
+                            "Python, Lua and C++ plugins run trusted local code with system access."}},
         {"search", {"Поиск команд и пространств", "Search commands and spaces"}},
         {"noWindow", {"Окно не назначено", "No window assigned"}},
         {"import", {"Импорт", "Import"}}, {"export", {"Экспорт", "Export"}},
@@ -201,11 +201,13 @@ void FlowDeckController::saveCurrent(const Workspace& w) {
     QString error;
     if (!store_.saveWorkspace(selected_, w, &error)) setStatus(error);
     currentPlan_ = WorkspaceEngine::plan(w);
+    prepared_ = false;
     emit workspacesChanged(); emit selectedChanged(); emit previewChanged(); emit commandsChanged(); emit hotkeysChanged();
 }
 void FlowDeckController::selectWorkspace(int i) {
     if (i < 0 || i >= store_.workspaces().size()) return;
     selected_ = i; currentPlan_ = WorkspaceEngine::plan(store_.workspaces()[i]);
+    prepared_ = false;
     emit selectedChanged(); emit previewChanged();
 }
 void FlowDeckController::createWorkspace() {
@@ -301,12 +303,22 @@ void FlowDeckController::exportWorkspace() {
 }
 void FlowDeckController::applySelected() {
     auto& w = store_.workspaces()[selected_]; QString error;
-    if (!WorkspaceEngine::apply(currentPlan_,w,&error)) {
+    if (!prepared_ && !w.before.isEmpty()) {
+        if (!WorkspaceEngine::prepare(w,&error)) { setStatus(error); return; }
+        prepared_ = true;
+        currentPlan_ = WorkspaceEngine::plan(w);
+        emit previewChanged(); emit windowsChanged();
+        setStatus(language()=="ru" ? "Шаги выполнены. Проверьте обновлённый план и примените." :
+                                     "Steps completed. Review the updated plan, then apply.");
+        return;
+    }
+    if (!WorkspaceEngine::apply(currentPlan_,w,&error,prepared_)) {
         currentPlan_ = WorkspaceEngine::plan(w); emit previewChanged(); setStatus(error); return;
     }
+    prepared_ = false;
     setStatus(language()=="en" ? "Workspace applied" : "Пространство применено"); refresh();
 }
-void FlowDeckController::undo() { QString error; WorkspaceEngine::undo(&error); setStatus(error); refresh(); }
+void FlowDeckController::undo() { QString error; WorkspaceEngine::undo(&error); prepared_ = false; setStatus(error); refresh(); }
 void FlowDeckController::refresh() {
     if (store_.workspaces().isEmpty()) return;
     currentPlan_ = WorkspaceEngine::plan(store_.workspaces()[selected_]); emit windowsChanged(); emit previewChanged();
@@ -362,7 +374,11 @@ QVariantList FlowDeckController::restorationDiff() const {
 void FlowDeckController::runCommand(const QString& id) {
     if (id.startsWith("workspace:")) {
         for (int i=0;i<store_.workspaces().size();++i) if (store_.workspaces()[i].id==id.mid(10)) {
-            selectWorkspace(i); if (store_.workspaces()[i].directApply) applySelected(); else emit requestManager(); return;
+            selectWorkspace(i);
+            if (store_.workspaces()[i].directApply) {
+                applySelected(); if (prepared_) emit requestManager();
+            } else emit requestManager();
+            return;
         }
     }
     if (id=="core:undo") { undo(); return; }

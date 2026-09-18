@@ -20,6 +20,7 @@ class FlowDeckController : public QObject {
     Q_PROPERTY(QVariantList plugins READ plugins NOTIFY pluginsChanged)
     Q_PROPERTY(QString status READ status NOTIFY statusChanged)
     Q_PROPERTY(int selectedIndex READ selectedIndex NOTIFY selectedChanged)
+    Q_PROPERTY(bool prepared READ prepared NOTIFY previewChanged)
     Q_PROPERTY(QString language READ language NOTIFY settingsChanged)
     Q_PROPERTY(QVariantMap i18n READ i18n NOTIFY settingsChanged)
 
@@ -35,6 +36,7 @@ class FlowDeckController : public QObject {
     QVariantList plugins() const;
     QString status() const { return status_; }
     int selectedIndex() const { return selected_; }
+    bool prepared() const { return prepared_; }
     QString language() const;
     QVariantMap i18n() const;
     WorkspaceStore& store() { return store_; }
@@ -93,6 +95,7 @@ class FlowDeckController : public QObject {
     WorkspaceStore store_;
     int selected_ = 0;
     LayoutPlan currentPlan_;
+    bool prepared_ = false;
     QString status_;
 };
 

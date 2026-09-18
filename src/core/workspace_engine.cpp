@@ -131,7 +131,17 @@ bool runStep(const ActionStep& step, QString* error) {
         QProcess process;
         const auto mode = QFileInfo::exists(step.script) ? "-File" : "-Command";
         process.start("powershell.exe", {"-NoProfile", "-NonInteractive", mode, step.script});
-        if (process.waitForFinished(step.timeoutMs) &&
+        if (!process.waitForStarted(1000)) {
+            *error = QStringLiteral("PowerShell could not start: %1").arg(process.errorString());
+            return false;
+        }
+        QElapsedTimer timeout;
+        timeout.start();
+        while (process.state() != QProcess::NotRunning && timeout.elapsed() < step.timeoutMs) {
+            process.waitForFinished(100);
+            QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+        }
+        if (process.state() == QProcess::NotRunning &&
             process.exitStatus() == QProcess::NormalExit &&
             process.exitCode() == 0) return true;
         if (process.state() != QProcess::NotRunning) process.kill();
@@ -143,6 +153,7 @@ bool runStep(const ActionStep& step, QString* error) {
         QElapsedTimer clock;
         clock.start();
         while (clock.elapsed() < step.timeoutMs) {
+            QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
             for (const auto& window : WorkspaceEngine::windows()) {
                 if (window.executable.endsWith(step.program, Qt::CaseInsensitive) &&
                     (step.script.isEmpty() ||
@@ -318,8 +329,18 @@ LayoutPlan WorkspaceEngine::plan(const Workspace& workspace) {
     return result;
 }
 
+bool WorkspaceEngine::prepare(const Workspace& workspace, QString* error) {
+    if (!workspace.trusted && !workspace.before.isEmpty()) {
+        *error = QStringLiteral("Review and trust imported actions first."); return false;
+    }
+    undoWindows_ = windows();
+    for (const auto& action : workspace.before)
+        if (!runStep(action,error)) return false;
+    return true;
+}
+
 bool WorkspaceEngine::apply(const LayoutPlan& layout, const Workspace& workspace,
-                            QString* error) {
+                            QString* error, bool skipBefore) {
     if (layout.fingerprint != fingerprint(windows())) {
         *error = QStringLiteral("Windows changed. Refresh the preview before applying.");
         return false;
@@ -332,10 +353,27 @@ bool WorkspaceEngine::apply(const LayoutPlan& layout, const Workspace& workspace
         *error = QStringLiteral("Review and trust imported actions first.");
         return false;
     }
-    undoWindows_.clear();
-    for (const auto& placement : layout.placements) undoWindows_.append(placement.window);
-    for (const auto& action : workspace.before)
-        if (!runStep(action, error)) return false;
+    if (!skipBefore) undoWindows_.clear();
+    for (const auto& placement : layout.placements) {
+        if (std::none_of(undoWindows_.begin(),undoWindows_.end(),[&](const WindowRecord& item) {
+            return item.handle == placement.window.handle;
+        })) undoWindows_.append(placement.window);
+    }
+    const auto currentWindows = windows();
+    for (const auto* actions : {&workspace.before, &workspace.after}) {
+        for (const auto& action : *actions) {
+            if (action.type != "minimize") continue;
+            for (const auto& window : currentWindows) {
+                if (!window.executable.endsWith(action.program,Qt::CaseInsensitive)) continue;
+                if (std::none_of(undoWindows_.begin(),undoWindows_.end(),[&](const WindowRecord& item) {
+                    return item.handle == window.handle;
+                })) undoWindows_.append(window);
+            }
+        }
+    }
+    if (!skipBefore)
+        for (const auto& action : workspace.before)
+            if (!runStep(action, error)) return false;
     for (const auto& placement : layout.placements) {
         if (!IsWindow(placement.window.handle)) {
             *error = QStringLiteral("A window closed during layout.");

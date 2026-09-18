@@ -147,7 +147,7 @@ ApplicationWindow {
                             Layout.fillWidth: true
                             Field { Layout.fillWidth: true; text: flowdeck.selectedWorkspace.name || ""; onEditingFinished: flowdeck.changeWorkspace("name", text) }
                             ActionButton { text: flowdeck.i18n.preview; onClicked: flowdeck.refresh() }
-                            ActionButton { text: flowdeck.i18n.apply; primary: true; enabled: flowdeck.preview.placements.length > 0; onClicked: flowdeck.applySelected() }
+                            ActionButton { text: flowdeck.selectedWorkspace.before.length > 0 && !flowdeck.prepared ? (flowdeck.language === "ru" ? "Выполнить шаги и обновить план" : "Run steps and refresh plan") : flowdeck.i18n.apply; primary: true; enabled: flowdeck.preview.placements.length > 0 || (flowdeck.selectedWorkspace.before.length > 0 && !flowdeck.prepared); onClicked: flowdeck.applySelected() }
                         }
                         Rectangle {
                             Layout.fillWidth: true; implicitHeight: 300; radius: 14

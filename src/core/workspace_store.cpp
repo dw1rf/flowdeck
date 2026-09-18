@@ -96,7 +96,10 @@ bool WorkspaceStore::removeWorkspace(int index) {
     return save();
 }
 
-void WorkspaceStore::beginAutosave() { scanTimer_.start(); }
+void WorkspaceStore::beginAutosave() {
+    scanTimer_.start();
+    if (lastSession_.isEmpty()) writeTimer_.start();
+}
 
 void WorkspaceStore::updateSession() {
     const auto current = WorkspaceEngine::fingerprint(WorkspaceEngine::windows());
