@@ -8,14 +8,16 @@ Download `FlowDeck-windows-x64.zip` from [Releases](https://github.com/dw1rf/flo
 
 | Shortcut | Action |
 | --- | --- |
-| Ctrl+Alt+Space | Toggle the command list in the console |
-| Ctrl+Alt+Enter | Run the selected command |
-| Ctrl+Shift+T | Tile windows with the coding preset |
-| Ctrl+Shift+G | Tile windows with the trading preset |
+| Ctrl+Alt+Space | Open or close the command window |
+| Ctrl+Alt+Enter | Apply the selected command while the window is open |
+| Ctrl+Shift+T | Open the coding layout preview |
+| Ctrl+Shift+G | Open the trading layout preview |
 
-To check the downloaded package without entering the message loop, run `flowdeck.exe --smoke-test` from a terminal. It loads both plugins, runs their greeting commands, then exits with code 0 on success. This check does not test interactive hotkeys or window placement.
+The launcher opens when FlowDeck starts. Type to search, use the arrow keys to choose a command, and press Enter or click the action button to run it. Selecting a layout shows the current windows in their proposed positions. No windows move until you apply the layout. Closing the launcher leaves FlowDeck in the system tray; right-click the tray icon to exit.
 
-The palette has no graphical window or keyboard query input yet. Python plugin changes require an application restart. Manifest permissions are parsed but are not enforced.
+To check the downloaded package without entering the message loop, run `flowdeck.exe --smoke-test` from a terminal. It creates the launcher, loads both plugins, runs their greeting commands, then exits with code 0 on success. This check does not test interactive hotkeys or window placement.
+
+Python plugin changes require an application restart. Manifest permissions are parsed but are not enforced.
 
 ## Build locally
 

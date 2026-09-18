@@ -35,14 +35,15 @@ add_executable(flowdeck WIN32
     src/core/window_tiler.cpp
     src/core/plugin_manager.cpp
     src/core/python_runtime.cpp
-    src/core/python_plugin_loader.cpp)
+    src/core/python_plugin_loader.cpp
+    src/ui/launcher_window.cpp)
 
 target_include_directories(flowdeck PRIVATE src)
 
 target_link_libraries(flowdeck PRIVATE Python3::Python)
 
 if(WIN32)
-    target_link_libraries(flowdeck PRIVATE user32 shell32 dwmapi)
+    target_link_libraries(flowdeck PRIVATE user32 shell32 dwmapi gdi32)
     add_subdirectory(plugins/example-cpp)
 endif()
 

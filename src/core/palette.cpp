@@ -91,21 +91,10 @@ void Palette::Show() {
     visible_ = true;
     selection_ = 0;
     SetQuery("");
-
-    // Console-rendered palette until the Direct2D window lands.
-    std::cout << "\n[palette] open — " << commands_.size() << " commands\n";
-    int i = 0;
-    for (const Command* c : Ranked()) {
-        std::cout << "  " << (i == selection_ ? ">" : " ") << " " << c->title;
-        if (!c->hint.empty()) std::cout << "   (" << c->hint << ")";
-        std::cout << "\n";
-        ++i;
-    }
 }
 
 void Palette::Hide() {
     visible_ = false;
-    std::cout << "[palette] closed\n";
 }
 
 void Palette::Toggle() {

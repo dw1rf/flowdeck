@@ -12,9 +12,7 @@ namespace flowdeck {
 
 namespace {
 
-struct Slot {
-    int x, y, w, h;
-};
+using Slot = TileRect;
 
 struct WindowInfo {
     HWND hwnd;
@@ -169,8 +167,23 @@ void WindowTiler::ApplyPreset(const std::string& name) {
         ShowWindow(windows[i].hwnd, SW_RESTORE);
         SetWindowPos(windows[i].hwnd, nullptr, s.x, s.y, s.w, s.h,
                      SWP_NOZORDER | SWP_NOACTIVATE);
-        std::wcout << L"  → " << windows[i].title << L"\n";
     }
+}
+
+LayoutPreview WindowTiler::PreviewPreset(const std::string& name) const {
+    auto windows = CollectWindows();
+    LayoutPreview preview{};
+    preview.work_area = WorkArea();
+    if (windows.size() > max_windows_) {
+        preview.omitted = windows.size() - max_windows_;
+        windows.resize(max_windows_);
+    }
+    const auto slots = BuildPreset(name, preview.work_area,
+                                   static_cast<int>(windows.size()));
+    for (size_t i = 0; i < windows.size() && i < slots.size(); ++i) {
+        preview.windows.push_back({windows[i].title, slots[i]});
+    }
+    return preview;
 }
 
 }  // namespace flowdeck

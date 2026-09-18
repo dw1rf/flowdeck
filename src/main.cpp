@@ -16,6 +16,7 @@
 #include "core/python_plugin_loader.hpp"
 #include "core/python_runtime.hpp"
 #include "core/window_tiler.hpp"
+#include "ui/launcher_window.hpp"
 
 namespace fs = std::filesystem;
 
@@ -25,6 +26,7 @@ constexpr UINT kHotkeyPalette = 1;
 constexpr UINT kHotkeyTileCoding = 2;
 constexpr UINT kHotkeyTileTrading = 3;
 constexpr UINT kHotkeyRunSelected = 4;
+flowdeck::LauncherWindow* g_launcher = nullptr;
 
 std::wstring ExeDirectory() {
     wchar_t buf[MAX_PATH] = {};
@@ -37,16 +39,16 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         case WM_HOTKEY:
             switch (LOWORD(wp)) {
                 case kHotkeyPalette:
-                    flowdeck::Palette::Instance().Toggle();
+                    if (g_launcher) g_launcher->Toggle();
                     return 0;
                 case kHotkeyTileCoding:
-                    flowdeck::WindowTiler::Instance().ApplyPreset("coding");
+                    if (g_launcher) g_launcher->OpenPreset("coding");
                     return 0;
                 case kHotkeyTileTrading:
-                    flowdeck::WindowTiler::Instance().ApplyPreset("trading");
+                    if (g_launcher) g_launcher->OpenPreset("trading");
                     return 0;
                 case kHotkeyRunSelected:
-                    flowdeck::Palette::Instance().ExecuteSelected();
+                    if (g_launcher) g_launcher->ExecuteSelected();
                     return 0;
                 default:
                     return 0;
@@ -70,7 +72,7 @@ HWND CreateMessageWindow(HINSTANCE inst) {
 }
 
 void AttachConsoleIfPossible() {
-    if (!AttachConsole(ATTACH_PARENT_PROCESS)) AllocConsole();
+    if (!AttachConsole(ATTACH_PARENT_PROCESS)) return;
     FILE* dummy = nullptr;
     freopen_s(&dummy, "CONOUT$", "w", stdout);
     freopen_s(&dummy, "CONOUT$", "w", stderr);
@@ -79,14 +81,13 @@ void AttachConsoleIfPossible() {
 }  // namespace
 
 int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int) {
-    AttachConsoleIfPossible();
-    std::cout << "[FlowDeck] starting\n";
-
     int argc = 0;
     LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
     const bool smoke_test = argv && argc == 2 &&
                             std::wstring(argv[1]) == L"--smoke-test";
     if (argv) LocalFree(argv);
+    if (smoke_test) AttachConsoleIfPossible();
+    std::cout << "[FlowDeck] starting\n";
 
     const std::wstring plugin_dir = ExeDirectory() + L"\\plugins";
 
@@ -123,7 +124,20 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int) {
         std::cerr << "[FlowDeck] Python unavailable — native plugins only\n";
     }
 
+    flowdeck::LauncherWindow launcher;
+    if (!launcher.Create(inst, hwnd)) {
+        std::cerr << "[FlowDeck] cannot create launcher window\n";
+        flowdeck::PythonPluginLoader::Instance().UnloadAll();
+        flowdeck::python::Shutdown();
+        DestroyWindow(hwnd);
+        return 1;
+    }
+    g_launcher = &launcher;
+
     if (smoke_test) {
+        launcher.Show();
+        const bool ui_ready = launcher.visible();
+        launcher.Hide();
         const auto& commands = palette.All();
         const auto has = [&](const std::string& id) {
             return std::any_of(commands.begin(), commands.end(),
@@ -131,7 +145,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int) {
                                    return command.id == id;
                                });
         };
-        const bool loaded = flowdeck::python::IsReady() &&
+        const bool loaded = ui_ready && flowdeck::python::IsReady() &&
                             has("example-hello:hello") &&
                             has("example_cpp:hello");
         const bool ran = loaded &&
@@ -140,6 +154,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int) {
         std::cout << (ran ? "[smoke] passed\n" : "[smoke] failed\n");
         flowdeck::PythonPluginLoader::Instance().UnloadAll();
         flowdeck::python::Shutdown();
+        g_launcher = nullptr;
         DestroyWindow(hwnd);
         return ran ? 0 : 1;
     }
@@ -150,12 +165,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int) {
     hotkeys.Register(hwnd, kHotkeyTileTrading, MOD_CONTROL | MOD_SHIFT, 'G');
     hotkeys.Register(hwnd, kHotkeyRunSelected, MOD_CONTROL | MOD_ALT, VK_RETURN);
 
-    std::cout << "[FlowDeck] ready — " << palette.All().size()
-              << " commands\n"
-              << "  Ctrl+Alt+Space  toggle palette\n"
-              << "  Ctrl+Alt+Enter  run highlighted command\n"
-              << "  Ctrl+Shift+T    tile: coding\n"
-              << "  Ctrl+Shift+G    tile: trading\n";
+    launcher.Show();
 
     MSG msg{};
     while (GetMessage(&msg, nullptr, 0, 0) > 0) {
@@ -164,6 +174,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int) {
     }
 
     hotkeys.UnregisterAll();
+    g_launcher = nullptr;
     flowdeck::PythonPluginLoader::Instance().UnloadAll();
     flowdeck::python::Shutdown();
     return static_cast<int>(msg.wParam);
